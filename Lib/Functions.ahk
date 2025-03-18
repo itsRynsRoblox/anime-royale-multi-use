@@ -60,6 +60,7 @@ OpenDiscordLink() {
     StoryActDropdown.Visible := false
     RaidDropdown.Visible := false
     RaidActDropdown.Visible := false
+    HardModeBox.Visible := false
     
     if (selected = "Story") {
         if (customOnly) {
@@ -68,6 +69,7 @@ OpenDiscordLink() {
         }
         StoryDropdown.Visible := true
         StoryActDropdown.Visible := true
+        HardModeBox.Visible := true
         mode := "Story"
     } else if (selected = "Raid") {
         if (customOnly) {
@@ -117,6 +119,7 @@ OnConfirmClick(*) {
         AddToLog("Selected " StoryDropdown.Text " - " StoryActDropdown.Text)
         ReturnLobbyBox.Visible := (StoryActDropdown.Text = "Infinity")
         NextLevelBox.Visible := (StoryActDropdown.Text != "Infinity")
+        HardModeBox.Visible := true
     }
     ; For Raid mode, check if both Raid and RaidAct are selected
     else if (ModeDropdown.Text = "Raid") {

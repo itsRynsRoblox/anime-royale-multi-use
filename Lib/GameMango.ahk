@@ -14,6 +14,10 @@ F5:: {
 
 }
 
+F6:: {
+
+}
+
 
 StartMacro(*) {
     if (!ValidateMode()) {
@@ -43,7 +47,7 @@ CheckForReturnToLobby() {
 
 CheckForUnitManager() {
     ; Check for unit manager text
-    if (ok := FindText(&X, &Y, 707, 323, 780, 340, 0, 0, UnitManager)) {
+    if (ok := FindText(&X, &Y, 701, 318, 784, 344, 0.10, 0.10, UnitManager)) {
         return true
     }
     return false
@@ -360,7 +364,7 @@ StoryMode() {
     StoryMovement()
     
     ; Start stage
-    while !(ok:=FindText(&X, &Y, 573, 485, 678, 514, 0, 0, SelectMode)) { ;fix results
+    while !(ok:=FindText(&X, &Y, 573, 485, 678, 514, 0, 0, SelectMode)) {
         StoryMovement()
     }
 
@@ -384,16 +388,12 @@ RaidMode() {
     RaidMovement()
     
     ; Start stage
-    while !(ok := FindText(&X, &Y, 322, 212, 445, 246, 0, 0, Results)) { ;fix results
+    while !(ok := FindText(&X, &Y, 551, 453, 640, 478, 0.10, 0.10, SelectRaid)) {
         RaidMovement()
     }
 
     AddToLog("Starting " currentRaidMap " - " currentRaidAct)
-    if (UINavToggle.Value) {
-        StartRaid(currentRaidMap, currentRaidAct)
-    } else {
-        StartRaidNoUI(currentRaidMap, currentRaidAct)
-    }
+    StartRaidNoUI(currentRaidMap, currentRaidAct)
     ; Handle play mode selection
     PlayHere(true)
     RestartStage(false)
@@ -418,14 +418,26 @@ RestartCustomStage() {
     MonitorStage()
 }
 
+SetGameSpeed() {
+    if (ModeDropdown.Text = "Story") {
+        AddToLog("Setting game speed to 3x")
+        loop 3 {
+            FixClick(588, 553) ; Click Game Speed
+            Sleep(300)
+        }
+    }
+}
+
 MonitorEndScreen() {
-    global mode, StoryDropdown, StoryActDropdown, ReturnLobbyBox
+    global mode
 
     Loop {
         Sleep(3000)
         if (CheckForReturnToLobby()) {
             AddToLog("Found Lobby Text - Current Mode: " mode)
             Sleep(2000)
+
+
 
             if (mode = "Story") {
                 HandleStoryMode()
@@ -443,7 +455,7 @@ MonitorEndScreen() {
 HandleStoryMode() {
     AddToLog("Handling Story mode end")
     if (StoryActDropdown.Text != "Infinity") {
-        ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, (NextLevelBox.Value && lastResult = "win") ? 100 : 50, -30)
+        ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, (NextLevelBox.Value && lastResult = "win") ? 250 : 100, -30)
     } else {
         AddToLog("Story Infinity replay")
         ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, 100, -30)
@@ -480,10 +492,13 @@ MonitorStage() {
     
     Loop {
         Sleep(1000)
+
+        Reconnect()
         
         timeElapsed := A_TickCount - lastClickTime
-        if (timeElapsed >= 15000) {  ; 15 seconds
+        if (ModeDropdown.Text = "Story" && StoryActDropdown.Text = "Infinity" && timeElapsed >= 30000) {  ; 30 seconds
             FixClick(300, 400)  ; Move click
+            AddToLog("Clicking to prevent AFK kick")
             lastClickTime := A_TickCount
         }
 
@@ -491,30 +506,31 @@ MonitorStage() {
         stageEndTime := A_TickCount
         stageLength := FormatStageTime(stageEndTime - stageStartTime)
 
-        if (ok := FindText(&X, &Y, 14, 387, 87, 406, 0, 0, UnitExistence)) {
-            ClickUntilGone(0, 0, 14, 387, 87, 406, UnitExistence, -4, -35)
+        if (ok := FindText(&X, &Y, 15, 388, 84, 406, 0.10, 0.10, UnitExistence)) {
+            SendInput("{X}")
         }
 
-        if (ok := FindText(&X, &Y, 253, 209, 380, 237, 0, 0, VictoryText)) {
-            AddToLog("Victory detected - Stage Length: " stageLength)
-            Wins += 1
-            SendWebhookWithTime(true, stageLength)
-            return MonitorEndScreen()
-        }
-        else if (ok := FindText(&X, &Y, 125, 181, 266, 214, 0, 0, DefeatText)) {
+        if (ok := FindText(&X, &Y, 150, 180, 350, 260, 0, 0, DefeatText)) {
             AddToLog("Defeat detected - Stage Length: " stageLength)
+            isWin := false
             loss += 1
-            SendWebhookWithTime(false, stageLength)
-            return MonitorEndScreen()
+        }
+    
+        if (ok := FindText(&X, &Y, 130, 183, 292, 211, 0.10, 0.10, VictoryText)) {
+            AddToLog("Victory detected - Stage Length: " stageLength)
+            isWin := true
+            Wins += 1
         }
 
-        Reconnect()
+        SendWebhookWithTime(true, stageLength)
+
+        return MonitorEndScreen()
     }
 }
 
 StoryMovement() {
     ; Click Play
-    FixClick(35, 300)
+    FixClick(30, 300)
     Sleep (2000)
     ;Walk To Room
     SendInput ("{s down}")
@@ -530,60 +546,35 @@ StoryMovement() {
     SendInput ("{d up}")
 }
 
-ChallengeMovement() {
-    ; Click Teleport
-    FixClick(75, 250)
-    sleep (1000)
-
-    ; Click Play/Portals
-    FixClick(280, 280)
-    sleep (1000)
-
-    ; Click search
-    FixClick(300, 178)
-    Sleep(1500)
-        
-    ; Type portal name
-    Send "Challenge"
-    Sleep(1500)
-
-    ; Click Portal
-    FixClick(196, 234)
-    Sleep 1000
-
-    ; Click Play
-    FixClick(240, 265)
-    sleep (1000)
-}
-
 RaidMovement() {
-    ; Click Teleport
-    FixClick(75, 250)
-    sleep (1000)
-
-    ; Click Play/Portals
-    FixClick(280, 280)
-    sleep (1000)
-
-    ; Click search
-    FixClick(300, 178)
-    Sleep(1500)
-        
-    ; Type portal name
-    Send "Raid"
-    Sleep(1500)
-
-    ; Click Portal
-    FixClick(196, 234)
-    Sleep 1000
-
     ; Click Play
-    FixClick(240, 265)
-    sleep (1000)
+    FixClick(763, 235)
+    Sleep (2000)
+    FixClick(526, 427)
+    Sleep (2000)
+    ;Walk To Room
+    SendInput ("{a down}")
+    Sleep (1700)
+    SendInput ("{a up}")
+    Sleep (1000)
+    SendInput ("{w down}")
+    Sleep (1200)
+    SendInput ("{w up}")
+    Sleep (1000)
+    SendInput ("{a down}")
+    Sleep (1100)
+    SendInput ("{a up}")
+    Sleep (1000)
+    SendInput ("{w down}")
+    Sleep (500)
+    SendInput ("{w up}")
 }
 
 StartStory(map, StoryActDropdown) {
     FixClick(640, 70) ; Closes Player leaderboard
+    Sleep(500)
+
+    FixClick(502, 465) ; Friends Only
     Sleep(500)
     navKeys := GetNavKeys()
     for key in navKeys {
@@ -669,19 +660,61 @@ StartStoryNoUI(map, act) {
     ; Click on the act
     FixClick(StoryAct.x, StoryAct.y)
     Sleep(1000)
-    
+
+    if (HardModeBox.Value) {
+        FixClick(625, 390) ; Click Hard Mode
+        Sleep(500)
+    }
+
+    if (act != "Infinity") {
+        SetModulationModifier()
+    }
     return true
 }
 
-StartRaidNoUI(map, RaidActDropdown) {
-    FixClick(640, 70) ; Close Leaderboard
+StartRaidNoUI(map, act) {
+    AddToLog("Selecting map: " map " and act: " act)
+    
+    ; Closes Player leaderboard
+    FixClick(640, 70)
     Sleep(500)
-    raidClickCoords := GetRaidClickCoords(map) ; Coords for Raid Map
-    FixClick(raidClickCoords.x, raidClickCoords.y) ; Choose Raid
-    Sleep 500
-    actClickCoords := GetRaidActClickCoords(RaidActDropdown) ; Coords for Raid
-    FixClick(actClickCoords.x, actClickCoords.y) ; Choose Raid Act
-    Sleep 500
+    ; Get Story map 
+    RaidMap := GetMapData("RaidMap", map)
+    
+    ; Scroll if needed
+    if (RaidMap.scrolls > 0) {
+        AddToLog("Scrolling down " RaidMap.scrolls " for " map)
+        MouseMove(210, 260)
+        loop RaidMap.scrolls {
+            SendInput("{WheelDown}")
+            Sleep(250)
+        }
+    }
+    Sleep(1000)
+    
+    ; Click on the map
+    FixClick(RaidMap.x, RaidMap.y)
+    Sleep(1000)
+    
+    ; Get act details
+    RaidAct := GetMapData("RaidAct", act)
+    
+    ; Scroll if needed for act
+    if (RaidAct.scrolls > 0) {
+        AddToLog("Scrolling down " RaidAct.scrolls " times for " act)
+        MouseMove(300, 240)
+        loop RaidAct.scrolls {
+            SendInput("{WheelDown}")
+            Sleep(250)
+        }
+    }
+    Sleep(1000)
+    
+    ; Click on the act
+    FixClick(RaidAct.x, RaidAct.y)
+    Sleep(1000)
+    SetModulationModifier()
+    return true
 }
 
 StartChallenge() {
@@ -733,11 +766,11 @@ StartRaid(map, RaidActDropdown) {
 
 PlayHere(clickConfirm := true) {
     if (clickConfirm) {
-        FixClick(385, 429) ; Click Confirm
+        FixClick(620, 465) ; Click Confirm
         Sleep (1000)
     }
-    FixClick(60, 410) ; Click Start
-    Sleep (300)
+    FixClick(158, 473) ; Click Start
+    Sleep (500)
 }
 
 GetStoryDownArrows(map) {
@@ -875,9 +908,7 @@ BasicSetup(replay := false) {
         CloseChat()
         Sleep 1500
         ChangeSpeed()
-    }
-    Sleep 1500
-    if (!replay) {
+        Sleep 1500
         Zoom()
         Sleep 1500
     }
@@ -886,7 +917,11 @@ BasicSetup(replay := false) {
 }
 
 SetModulationModifier() {
-    FixClick(392, 432) ; Open Modifier
+    if (ModeDropdown.Text = "Story") {
+        FixClick(378, 465)
+    } else {
+        FixClick(392, 432) ; Open Modifier
+    }
     Sleep(500)
     FixClick(343, 330) ; Click Modifier Box
     Sleep(500)
@@ -1081,7 +1116,7 @@ UnitPlaced() {
 WaitForUpgradeText(timeout := 4500) {
     startTime := A_TickCount
     while (A_TickCount - startTime < timeout) {
-        if (FindText(&X, &Y, 88, 300, 143, 316, 0, 0, Upgrade)) {
+        if (FindText(&X, &Y, 88, 301, 187, 315, 0.10, 0.10, UpgradeText)) {
             return true
         }
         Sleep 100  ; Check every 100ms
@@ -1111,9 +1146,9 @@ CheckLobby() {
 CheckLoaded() {
     loop {
         Sleep(1000)
-        ; Check for enemies alive
+        ; Check for unit manager
         if (ok := CheckForUnitManager()) {
-            Sleep(1000)
+            AddToLog("Game loaded")
             break
         }
         Reconnect()
@@ -1432,21 +1467,29 @@ GetMapData(type, name) {
             "Act 4", {x: 380, y: 335, scrolls: 0},
             "Act 5", {x: 380, y: 365, scrolls: 0},
             "Act 6", {x: 380, y: 395, scrolls: 0},
-            "Infinity", {x: 380, y: 425, scrolls: 0},
+            "Infinity", {x: 380, y: 425, scrolls: 0}
         ),
         "RaidMap", Map(
-            "Ant Kingdom", {x: 630, y: 250, scrolls: 0},
-            "Sacred Planet", {x: 630, y: 300, scrolls: 0},
-            "Strange Town", {x: 630, y: 350, scrolls: 0},
-            "Ruined City", {x: 630, y: 400, scrolls: 0},
-            "Cursed Festival", {x: 630, y: 325, scrolls: 1},
+            "Green Planet", {x: 380, y: 250, scrolls: 0},
+            "Hollow Desert", {x: 380, y: 300, scrolls: 0},
+            "Red Palace", {x: 380, y: 350, scrolls: 0},
+            "Sorcery Academy", {x: 380, y: 400, scrolls: 0},
+
+            "Lookout", {x: 380, y: 310, scrolls: 1},
+            "Slayers District", {x: 380, y: 360, scrolls: 1},
+            "Underground Tomb", {x: 380, y: 400, scrolls: 1},
+
+            "Boru's Room", {x: 630, y: 340, scrolls: 2},
+            "Candy Park", {x: 630, y: 390, scrolls: 2}
+
         ),
         "RaidAct", Map(
-            "Act 1", {x: 285, y: 235, scrolls: 0},
-            "Act 2", {x: 285, y: 270, scrolls: 0},
-            "Act 3", {x: 285, y: 305, scrolls: 0},
-            "Act 4", {x: 285, y: 340, scrolls: 0},
-            "Act 5", {x: 285, y: 375, scrolls: 0}
+            "Act 1", {x: 380, y: 245, scrolls: 0},
+            "Act 2", {x: 380, y: 275, scrolls: 0},
+            "Act 3", {x: 380, y: 305, scrolls: 0},
+            "Act 4", {x: 380, y: 335, scrolls: 0},
+            "Act 5", {x: 380, y: 365, scrolls: 0},
+            "Act 6", {x: 380, y: 395, scrolls: 0}
         ),
         "LegendMap", Map(
             "Magic Hills", {x: 630, y: 240, scrolls: 0},

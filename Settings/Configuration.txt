@@ -29,7 +29,7 @@ UpgradeEnabled5=0
 UpgradeEnabled6=0
 
 [PlacementLogic]
-Logic=2
+Logic=1
 
 
 [PlaceSpeed]

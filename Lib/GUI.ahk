@@ -224,10 +224,9 @@ placementSaveBtn.OnEvent("Click", SaveSettings)
 aaMainUI.SetFont("s9")
 global NextLevelBox := aaMainUI.Add("Checkbox", "x900 y451 cffffff Checked", "Next Level")
 global ReturnLobbyBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Return To Lobby")
-;global UpgradeDuringPlacementBox := aaMainUI.Add("Checkbox", "x1150 y476 cffffff Checked", "Upgrade During Placement")
-;global AutoAbilityBox := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked", "Auto Ability")
-global UINavToggle := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked", "UI Navigation")
-global PriorityUpgrade := aaMainUI.Add("CheckBox", "x1015 y476 cffffff", "Priority Upgrade")
+global HardModeBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Hard Mode")
+global UINavToggle := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked Hidden", "UI Navigation")
+global PriorityUpgrade := aaMainUI.Add("CheckBox", "x900 y476 cffffff", "Priority Upgrade")
 PlacementPatternText := aaMainUI.Add("Text", "x1032 y390 w115 h20", "Placement Type")
 global PlacementPatternDropdown := aaMainUI.Add("DropDownList", "x1035 y410 w100 h180 Choose2 +Center", ["Circle", "Custom", "Grid", "Random"])
 PlaceSpeedText := aaMainUI.Add("Text", "x1193 y390 w115 h20", "Placement Speed")
@@ -271,10 +270,10 @@ DiscordButton.OnEvent("Click", (*) => OpenDiscord())
 ;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT
 global modeSelectionGroup := aaMainUI.Add("GroupBox", "x808 y38 w500 h45 Background" uiTheme[2], "Mode Select")
 aaMainUI.SetFont("s10 c" uiTheme[6])
-global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Custom"])
+global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Raid", "Custom"])
 global StoryDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Ghoul City", "Sharkman Island", "Hidden Village", "Fairy Town", "Cursed Town", "Corp City", "Soul World", "Strongest City"])
 global StoryActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1", "Act 2", "Act 3", "Act 4", "Act 5", "Act 6", "Infinity"])
-global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", [""])
+global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Hollow Desert", "Red Palace", "Sorcery Academy", "Lookout", "Slayers District", "Underground Tomb", "Boru's Room", "Candy Park"])
 global RaidActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1"])
 global ConfirmButton := aaMainUI.Add("Button", "x1218 y53 w80 h25", "Confirm")
 
@@ -284,6 +283,7 @@ RaidDropdown.Visible := false
 RaidActDropdown.Visible := false
 ReturnLobbyBox.Visible := false
 NextLevelBox.Visible := false
+HardModeBox.Visible := false
 Hotkeytext.Visible := false
 Hotkeytext2.Visible := false
 ModeDropdown.OnEvent("Change", OnModeChange)
@@ -300,8 +300,8 @@ AddUnitCard(aaMainUI, index, x, y) {
     unit.BorderTop := aaMainUI.Add("Text", Format("x{} y{} w550 h2 +Background{}", x, y, uiTheme[3]))
     unit.BorderBottom := aaMainUI.Add("Text", Format("x{} y{} w552 h2 +Background{}", x, y+45, uiTheme[3]))
     unit.BorderLeft := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x, y, uiTheme[3]))
-    unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+550, y, uiTheme[3]))
     unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+250, y, uiTheme[3]))
+    unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+550, y, uiTheme[3]))
     aaMainUI.SetFont("s11 Bold c" uiTheme[1])
     unit.Title := aaMainUI.Add("Text", Format("x{} y{} w60 h25 +BackgroundTrans", x+30, y+18), "Unit " index)
 
