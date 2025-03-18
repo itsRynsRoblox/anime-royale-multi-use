@@ -6,10 +6,10 @@
 
 ;Update Checker
 global repoOwner := "itsRynsRoblox"
-global repoName := "anime-guardians-multi-use"
-global currentVersion := "1.5.1"
+global repoName := "anime-royale-multi-use"
+global currentVersion := "1"
 ; Basic Application Info
-global aaTitle := "Ryn's Anime Guardians Macro "
+global aaTitle := "Ryn's Anime Royale Macro "
 global version := "v" . currentVersion
 global rblxID := "ahk_exe RobloxPlayerBeta.exe"
 ;Coordinate and Positioning Variables
@@ -222,25 +222,38 @@ guideBtn.OnEvent("Click", OpenGuide)
 placementSaveBtn := aaMainUI.Add("Button", "x807 y471 w80 h20", "Save")
 placementSaveBtn.OnEvent("Click", SaveSettings)
 aaMainUI.SetFont("s9")
-global MatchMaking := aaMainUI.Add("Checkbox", "x1143 y476 cffffff Hidden Checked", "Matchmaking")
 global NextLevelBox := aaMainUI.Add("Checkbox", "x900 y451 cffffff Checked", "Next Level")
 global ReturnLobbyBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Return To Lobby")
+;global UpgradeDuringPlacementBox := aaMainUI.Add("Checkbox", "x1150 y476 cffffff Checked", "Upgrade During Placement")
 ;global AutoAbilityBox := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked", "Auto Ability")
 global UINavToggle := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked", "UI Navigation")
 global PriorityUpgrade := aaMainUI.Add("CheckBox", "x1015 y476 cffffff", "Priority Upgrade")
 PlacementPatternText := aaMainUI.Add("Text", "x1032 y390 w115 h20", "Placement Type")
-global PlacementPatternDropdown := aaMainUI.Add("DropDownList", "x1035 y410 w100 h180 Choose2 +Center", ["Circle", "Grid", "Random", "Custom"])
+global PlacementPatternDropdown := aaMainUI.Add("DropDownList", "x1035 y410 w100 h180 Choose2 +Center", ["Circle", "Custom", "Grid", "Random"])
 PlaceSpeedText := aaMainUI.Add("Text", "x1193 y390 w115 h20", "Placement Speed")
 global PlaceSpeed := aaMainUI.Add("DropDownList", "x1205 y410 w100 h180 Choose1 +Center", ["Super Fast (1s)", "Fast (1.5s)", "Default (2s)", "Slow (2.5s)", "Very Slow (3s)", "Toaster (4s)"])
 ;PlaceSpeed.OnEvent('Change', (*) => changePlacementSpeed())
 
-PlacementSelectionText := aaMainUI.Add("Text", "x857 y390 w130 h20", "Placement Settings")
-PlacementSelection := aaMainUI.Add("DropDownList", "x865 y410 w100 h180 Choose1 +Center", ["Normal"])
+modulationText := aaMainUI.Add("Text", "x857 y390 w130 h20", "Modulation Settings")
+modulationEdit := aaMainUI.Add("Edit", "x895 y410 w60 h20 +Center c000000", "1.00")  ; Default value
+modulationUpDown := aaMainUI.Add("UpDown", "Range1-50")  ; Set range
+
+; Ensure input stays within 0.75 - 50 range
+modulationEdit.OnEvent("Change", ModulationValidate)
+
+ModulationValidate(*) {
+    val := modulationEdit.Value + 0  ; Convert to number
+    if (val < 0.75) 
+        modulationEdit.Value := "0.75"
+    else if (val > 50) 
+        modulationEdit.Value := "50"
+}
+
 placementSaveText := aaMainUI.Add("Text", "x807 y451 w80 h20", "Save Config")
 
 customPlacementText := aaMainUI.Add("Text", "x200 y642 w120 h20 +Left", "Set Placements")
 customPlacementButton := aaMainUI.Add("Button", "x210 y662 w80 h20", "Set")
-customPlacementButton.OnEvent("Click", (*) => StartClickCapture())
+customPlacementButton.OnEvent("Click", (*) => StartCoordCapture())
 
 customPlacementClearText := aaMainUI.Add("Text", "x345 y642 w120 h20 +Left", "Clear Placements")
 customPlacementClearButton := aaMainUI.Add("Button", "x360 y662 w80 h20", "Clear")
@@ -258,10 +271,10 @@ DiscordButton.OnEvent("Click", (*) => OpenDiscord())
 ;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT
 global modeSelectionGroup := aaMainUI.Add("GroupBox", "x808 y38 w500 h45 Background" uiTheme[2], "Mode Select")
 aaMainUI.SetFont("s10 c" uiTheme[6])
-global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Raid", "Challenge", "Valentine's Event", "Custom"])
-global StoryDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Large Village", "Hollow Land", "Monster City", "Academy Demon"])
+global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Custom"])
+global StoryDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Ghoul City", "Sharkman Island", "Hidden Village", "Fairy Town", "Cursed Town", "Corp City", "Soul World", "Strongest City"])
 global StoryActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1", "Act 2", "Act 3", "Act 4", "Act 5", "Act 6", "Infinity"])
-global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Lawless City", "Temple", "Orc Castle"])
+global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", [""])
 global RaidActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1"])
 global ConfirmButton := aaMainUI.Add("Button", "x1218 y53 w80 h25", "Confirm")
 
@@ -269,7 +282,6 @@ StoryDropdown.Visible := false
 StoryActDropdown.Visible := false
 RaidDropdown.Visible := false
 RaidActDropdown.Visible := false
-MatchMaking.Visible := false
 ReturnLobbyBox.Visible := false
 NextLevelBox.Visible := false
 Hotkeytext.Visible := false
@@ -296,6 +308,10 @@ AddUnitCard(aaMainUI, index, x, y) {
     aaMainUI.SetFont("s9 c" uiTheme[1])
     unit.PlacementText := aaMainUI.Add("Text", Format("x{} y{} w70 h20 +BackgroundTrans", x+100, y+2), "Placement")
     unit.PriorityText := aaMainUI.Add("Text", Format("x{} y{} w60 h20 BackgroundTrans", x+183, y+2), "Priority")
+
+    unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+390, y, uiTheme[3]))
+    unit.PlaceUpgradeText := aaMainUI.Add("Text", Format("x{} y{} w250 h20 BackgroundTrans", x+183+83, y+2), "Place && Upgrade")
+    unit.Title := aaMainUI.Add("Text", Format("x{} y{} w250 h25 +BackgroundTrans", x+295, y+20), "Enabled")
     
     UnitData.Push(unit)
     return unit
@@ -315,10 +331,14 @@ enabled4 := aaMainUI.Add("CheckBox", "x818 y255 w15 h15", "")
 enabled5 := aaMainUI.Add("CheckBox", "x818 y305 w15 h15", "")
 enabled6 := aaMainUI.Add("CheckBox", "x818 y355 w15 h15", "")
 
-aaMainUI.SetFont("s8 c" uiTheme[6])
+upgradeEnabled1 := aaMainUI.Add("CheckBox", "x1070 y105 w15 h15", "")
+upgradeEnabled2 := aaMainUI.Add("CheckBox", "x1070 y155 w15 h15", "")
+upgradeEnabled3 := aaMainUI.Add("CheckBox", "x1070 y205 w15 h15", "")
+upgradeEnabled4 := aaMainUI.Add("CheckBox", "x1070 y255 w15 h15", "")
+upgradeEnabled5 := aaMainUI.Add("CheckBox", "x1070 y305 w15 h15", "")
+upgradeEnabled6 := aaMainUI.Add("CheckBox", "x1070 y355 w15 h15", "")
 
-; Mode selection dropdown
-PlacementSelection.OnEvent("Change", ToggleMode)
+aaMainUI.SetFont("s8 c" uiTheme[6])
 
 ; Placement dropdowns
 Placement1 := aaMainUI.Add("DropDownList", "x908 y105 w60 h180 Choose1 +Center", ["1","2","3","4","5","6"])
@@ -335,30 +355,6 @@ Priority4 := aaMainUI.Add("DropDownList", "x990 y255 w60 h180 Choose1 +Center", 
 Priority5 := aaMainUI.Add("DropDownList", "x990 y305 w60 h180 Choose1 +Center", ["1","2","3","4","5","6"])
 Priority6 := aaMainUI.Add("DropDownList", "x990 y355 w60 h180 Choose1 +Center", ["1","2","3","4","5","6"])
 
-ChallengePlacement1 := aaMainUI.Add("DropDownList", "x908 y105 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePlacement2 := aaMainUI.Add("DropDownList", "x908 y155 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePlacement3 := aaMainUI.Add("DropDownList", "x908 y205 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePlacement4 := aaMainUI.Add("DropDownList", "x908 y255 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePlacement5 := aaMainUI.Add("DropDownList", "x908 y305 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePlacement6 := aaMainUI.Add("DropDownList", "x908 y355 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-
-ChallengePriority1 := aaMainUI.Add("DropDownList", "x990 y105 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePriority2 := aaMainUI.Add("DropDownList", "x990 y155 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePriority3 := aaMainUI.Add("DropDownList", "x990 y205 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePriority4 := aaMainUI.Add("DropDownList", "x990 y255 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePriority5 := aaMainUI.Add("DropDownList", "x990 y305 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-ChallengePriority6 := aaMainUI.Add("DropDownList", "x990 y355 w60 h180 Choose1 +Center Hidden", ["1","2","3","4","5","6"])
-
-ToggleMode(*) {
-    mode := PlacementSelection.Text
-    isChallenge := (mode = "Challenge")
-    Loop 6 {
-        Placement%A_Index%.Visible := !isChallenge
-        Priority%A_Index%.Visible := !isChallenge
-        ChallengePlacement%A_Index%.Visible := isChallenge
-        ChallengePriority%A_Index%.Visible := isChallenge
-    }
-}
 readInSettings()
 aaMainUI.Show("w1366 h700")
 WinMove(0, 0,,, "ahk_id " aaMainUIHwnd)
@@ -503,9 +499,10 @@ checkSizeTimer() {
     }
 }
 
-StartClickCapture() {
+StartCoordCapture() {
     global waitingForClick
     waitingForClick := true
+    AddToLog("Press LShift to stop coordinate capture")
     SetTimer UpdateTooltip, 50  ; Update tooltip position every 50ms
 }
 
@@ -513,26 +510,53 @@ UpdateTooltip() {
     global waitingForClick
     if waitingForClick {
         MouseGetPos &x, &y
-        ToolTip "Press shift anywhere to save coordinates...", x + 10, y + 10  ; Offset tooltip slightly
+        ToolTip "Click anywhere to save coordinates...", x + 10, y + 10  ; Offset tooltip slightly
     } else {
         ToolTip()  ; Hide tooltip when not waiting
         SetTimer UpdateTooltip, 0  ; Stop the timer
     }
 }
 
-~LShift:: 
+~LShift::
 {
-    global waitingForClick, savedCoords  
+    global waitingForClick
     if waitingForClick {
-        MouseGetPos &x, &y
+        AddToLog("Stopping coordinate capture")
         waitingForClick := false
+    }
+}
+
+~LButton::
+{
+    global waitingForClick, savedCoords
+    global placement1, placement2, placement3, placement4, placement5, placement6
+
+    if waitingForClick {
+        ; Wait for the button press and get the position when the mouse button is clicked
+        MouseGetPos &x, &y
+        SetTimer UpdateTooltip, 0  ; Stop updating tooltip immediately
+
         if !IsSet(savedCoords)  ; Ensure savedCoords is initialized
             savedCoords := []
-        savedCoords.Push({x: x, y: y})  ; Store as an object
-        ToolTip "Coordinates added: " x ", " y, x + 10, y + 10  ; Show tooltip at mouse position
-        AddToLog("📌 Saved Coordinates → X: " x ", Y: " y)
-        SetTimer () => ToolTip(), -2000  ; Hide tooltip after 2 sec
+        savedCoords.Push({x: x, y: y - 25})  ; Store as an object
+
+        ; Retrieve values from dropdowns
+        totalEnabled := placement1.Value + placement2.Value + placement3.Value + placement4.Value + placement5.Value + placement6.Value
+
+        ; Display tooltip with coordinate count and enabled count
+        ToolTip("Coords Set: " savedCoords.Length " / Total Enabled: " totalEnabled, x + 10, y + 10)
+        AddToLog("📌 Saved Coordinates → X: " x ", Y: " y " | Set: " savedCoords.Length " / Total Enabled: " totalEnabled)
+
+        ; Ensure tooltip disappears properly
+        SetTimer ClearToolTip, -1200
     }
+}
+
+
+ClearToolTip() {
+    ToolTip()  ; Properly clear tooltip
+    Sleep 100  ; Small delay to ensure clearing happens across all systems
+    ToolTip()  ; Redundant clear to catch edge cases
 }
 
 DeleteSavedCoords() {

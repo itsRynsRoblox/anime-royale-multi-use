@@ -62,16 +62,21 @@ OpenDiscordLink() {
     RaidActDropdown.Visible := false
     
     if (selected = "Story") {
+        if (customOnly) {
+            AddToLog("⚠️ Story isn't ready yet, Custom is available for now.")
+            return
+        }
         StoryDropdown.Visible := true
         StoryActDropdown.Visible := true
         mode := "Story"
     } else if (selected = "Raid") {
+        if (customOnly) {
+            AddToLog("⚠️ Raid isn't ready yet, Custom is available for now.")
+            return
+        }
         RaidDropdown.Visible := true
         RaidActDropdown.Visible := true
         mode := "Raid"
-    } else if (selected = "Valentine's Event") {
-        MatchMaking.Visible := true
-        mode := "Valentine's Event"
     } else if (selected = "Custom") {
         mode := "Custom"
     }
@@ -101,6 +106,10 @@ OnConfirmClick(*) {
 
     ; For Story mode, check if both Story and Act are selected
     if (ModeDropdown.Text = "Story") {
+        if (customOnly) {
+            AddToLog("⚠️ Story isn't ready yet, Custom is available for now.")
+            return
+        }
         if (StoryDropdown.Text = "" || StoryActDropdown.Text = "") {
             AddToLog("Please select both Story and Act before confirming")
             return
@@ -111,6 +120,10 @@ OnConfirmClick(*) {
     }
     ; For Raid mode, check if both Raid and RaidAct are selected
     else if (ModeDropdown.Text = "Raid") {
+        if (customOnly) {
+            AddToLog("⚠️ Raid isn't ready yet, Custom is available for now")
+            return
+        }
         if (RaidDropdown.Text = "" || RaidActDropdown.Text = "") {
             AddToLog("Please select both Raid and Act before confirming")
             return
@@ -126,14 +139,8 @@ OnConfirmClick(*) {
             return
         }
         AddToLog("Selected Custom")
-    }
-    else if (ModeDropdown.Text = "Valentine's Event") {
-        AddToLog("Selected " ModeDropdown.Text)
-        MatchMaking.Visible := true
-        ReturnLobbyBox.Visible := true
     } else {
         AddToLog("Selected " ModeDropdown.Text " mode")
-        MatchMaking.Visible := false
         ReturnLobbyBox.Visible := true
     }
 

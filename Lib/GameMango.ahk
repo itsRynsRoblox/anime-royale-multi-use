@@ -4,11 +4,15 @@ global macroStartTime := A_TickCount
 global stageStartTime := A_TickCount
 
 LoadKeybindSettings()  ; Load saved keybinds
-CheckForUpdates()
+;CheckForUpdates()
 Hotkey(F1Key, (*) => moveRobloxWindow())
 Hotkey(F2Key, (*) => StartMacro())
 Hotkey(F3Key, (*) => Reload())
 Hotkey(F4Key, (*) => TogglePause())
+
+F5:: {
+
+}
 
 
 StartMacro(*) {
@@ -29,9 +33,26 @@ TogglePause(*) {
     }
 }
 
-PlacingUnits() {
-    global successfulCoordinates
+CheckForReturnToLobby() {
+    ; Check for return to lobby text
+    if (ok := FindText(&X, &Y, 136, 420, 565, 465, 0, 0, ReturnToLobby)) {
+        return true
+    }
+    return false
+}
+
+CheckForUnitManager() {
+    ; Check for unit manager text
+    if (ok := FindText(&X, &Y, 707, 323, 780, 340, 0, 0, UnitManager)) {
+        return true
+    }
+    return false
+}
+
+PlacingUnits(untilSuccessful := true) {
+    global successfulCoordinates, maxedCoordinates
     successfulCoordinates := []
+    maxedCoordinates := []
     placedCounts := Map()  
 
     anyEnabled := false
@@ -51,72 +72,162 @@ PlacingUnits() {
     }
 
     placementPoints := PlacementPatternDropdown.Text = "Custom" ? GenerateCustomPoints() : PlacementPatternDropdown.Text = "Circle" ? GenerateCirclePoints() : PlacementPatternDropdown.Text = "Grid" ? GenerateGridPoints() : PlacementPatternDropdown.Text = "Spiral" ? GenerateSpiralPoints() : PlacementPatternDropdown.Text = "Up and Down" ? GenerateUpandDownPoints() : GenerateRandomPoints()
-    
+
     ; Go through each slot
     for slotNum in [1, 2, 3, 4, 5, 6] {
         enabled := "enabled" slotNum
         enabled := %enabled%
         enabled := enabled.Value
-        
+
         ; Get number of placements wanted for this slot
         placements := "placement" slotNum
         placements := %placements%
         placements := Integer(placements.Text)
-        
+
         ; Initialize count if not exists
         if !placedCounts.Has(slotNum)
             placedCounts[slotNum] := 0
-        
+
         ; If enabled, place all units for this slot
         if (enabled && placements > 0) {
             AddToLog("Placing Unit " slotNum " (0/" placements ")")
-            ; Place all units for this slot
-            while (placedCounts[slotNum] < placements) {
-                for point in placementPoints {
-                    ; Skip if this coordinate was already used successfully
-                    alreadyUsed := false
-                    for coord in successfulCoordinates {
-                        if (coord.x = point.x && coord.y = point.y) {
-                            alreadyUsed := true
-                            break
-                        }
-                    }
-                    if (alreadyUsed)
-                        continue
-                
-                    if PlaceUnit(point.x, point.y, slotNum) {
-                        successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
-                        placedCounts[slotNum] += 1
-                        AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
-                        CheckAbility()
-                        FixClick(560, 560) ; Move Click
+            
+            for point in placementPoints {
+                ; Skip if this coordinate was already used successfully
+                alreadyUsed := false
+                for coord in successfulCoordinates {
+                    if (coord.x = point.x && coord.y = point.y) {
+                        alreadyUsed := true
                         break
                     }
-                    
-                    if CheckForResults()
-                        return MonitorStage()
-                    Reconnect()
-                    CheckEndAndRoute()
                 }
-                Sleep(500)
+                for coord in maxedCoordinates {
+                    if (coord.x = point.x && coord.y = point.y) {
+                        alreadyUsed := true
+                        break
+                    }
+                }
+                if (alreadyUsed)
+                    continue
+
+                ; If untilSuccessful is false, try once and move on
+                if (!untilSuccessful) {
+                    if (placedCounts[slotNum] < placements) {
+                        if PlaceUnit(point.x, point.y, slotNum) {
+                            successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
+                            placedCounts[slotNum] += 1
+                            AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
+                            FixClick(700, 560) ; Move Click
+                            AttemptUpgrade()
+                        }
+                    }
+                }
+                ; If untilSuccessful is true, keep trying the same point until it works
+                else {
+                    while (placedCounts[slotNum] < placements) {
+                        if PlaceUnit(point.x, point.y, slotNum) {
+                            successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
+                            placedCounts[slotNum] += 1
+                            AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
+                            FixClick(700, 560) ; Move Click
+                            AttemptUpgrade()
+                            break ; Move to the next placement spot
+                        }
+                        AttemptUpgrade()
+                        if CheckForReturnToLobby()
+                            return MonitorStage()
+
+                        Reconnect()
+                        CheckEndAndRoute()
+                        Sleep(500) ; Prevents spamming clicks too fast
+                    }
+                }
+
+                if CheckForReturnToLobby()
+                    return MonitorStage()
             }
         }
     }
-    
     AddToLog("All units placed to requested amounts")
     UpgradeUnits()
 }
 
-CheckForResults() {
-    ; Check for results text
-    if (ok := FindText(&X, &Y, 276, 340, 359, 363, 0, 0, Results)) {
-        FixClick(325, 185)
-        FixClick(560, 560)
-        return true
-    }
-    return false
-}
+AttemptUpgrade() {
+    global successfulCoordinates, PriorityUpgrade
+    global priority1, priority2, priority3, priority4, priority5, priority6
 
+    if (successfulCoordinates.Length = 0) {
+        return ; No units placed yet
+    }
+
+    AddToLog("Attempting to upgrade units...")
+
+    if (PriorityUpgrade.Value) {
+        AddToLog("Using priority-based upgrading")
+        
+        ; Loop through priority levels (1-6) and upgrade all matching units
+        for priorityNum in [1, 2, 3, 4, 5, 6] {
+            upgradedThisRound := false
+
+            for index, coord in successfulCoordinates.Clone() { ; Clone to allow removal
+                ; Get the priority value for this unit's slot
+                priority := "priority" coord.slot
+                priority := %priority%
+
+                if (priority.Text = priorityNum) {
+                    UpgradeUnit(coord.x, coord.y)
+
+                    if CheckForReturnToLobby() {
+                        AddToLog("Stage ended during upgrades, proceeding to results")
+                        successfulCoordinates := []
+                        return MonitorStage()
+                    }
+
+                    if MaxUpgrade() {
+                        AddToLog("Max upgrade reached for Unit " coord.slot)
+                        successfulCoordinates.RemoveAt(index)
+                        FixClick(325, 185) ; Close upgrade menu
+                        continue
+                    }
+
+                    Sleep(200)
+                    FixClick(740, 545) ; Click away from unit
+                    Reconnect()
+                    CheckEndAndRoute()
+
+                    upgradedThisRound := true
+                }
+            }
+
+            if upgradedThisRound {
+                Sleep(300) ; Add a slight delay between batches
+            }
+        }
+    } else {
+        ; Normal (non-priority) upgrading - upgrade all available units
+        for index, coord in successfulCoordinates.Clone() {
+            UpgradeUnit(coord.x, coord.y)
+
+            if CheckForReturnToLobby() {
+                AddToLog("Stage ended during upgrades, proceeding to results")
+                successfulCoordinates := []
+                return MonitorStage()
+            }
+
+            if MaxUpgrade() {
+                AddToLog("Max upgrade reached for Unit " coord.slot)
+                successfulCoordinates.RemoveAt(index)
+                FixClick(325, 185) ; Close upgrade menu
+                continue
+            }
+
+            Sleep(200)
+            FixClick(740, 545) ; Click away from unit
+            Reconnect()
+            CheckEndAndRoute()
+        }
+    }
+}
 
 UpgradeUnits() {
     global successfulCoordinates, PriorityUpgrade, priority1, priority2, priority3, priority4, priority5, priority6
@@ -169,7 +280,7 @@ UpgradeUnits() {
                                 slotDone := false
                                 UpgradeUnit(coord.x, coord.y)
 
-                                if CheckForResults() {
+                                if CheckForReturnToLobby() {
                                     AddToLog("Stage ended during upgrades, proceeding to results")
                                     successfulCoordinates := []
                                     MonitorStage()
@@ -185,7 +296,6 @@ UpgradeUnits() {
                                 }
 
                                 Sleep(200)
-                                CheckAbility()
                                 FixClick(560, 560) ; Move Click
                                 Reconnect()
                                 CheckEndAndRoute()
@@ -214,7 +324,7 @@ UpgradeUnits() {
             for index, coord in successfulCoordinates {
                 UpgradeUnit(coord.x, coord.y)
 
-                if CheckForResults() {
+                if CheckForReturnToLobby() {
                     AddToLog("Stage ended during upgrades, proceeding to results")
                     successfulCoordinates := []
                     MonitorStage()
@@ -230,41 +340,12 @@ UpgradeUnits() {
                 }
 
                 Sleep(200)
-                CheckAbility()
                 FixClick(560, 560) ; Move Click
                 Reconnect()
                 CheckEndAndRoute()
             }
         }
     }
-}
-
-ChallengeMode() {    
-    AddToLog("Starting Challenge Mode")
-    ChallengeMovement()
-    
-    while !(ok := FindText(&X, &Y, 46, 224, 145, 254, 0, 0, ChallengePortal)) {
-        ChallengeMovement()
-    }
-
-    ; Handle play mode selection
-    PlayHere(false)
-    RestartStage(false)
-}
-
-ValentineMode() {    
-    AddToLog("Moving to Valentine's Event")
-    ValentineMovement()
-
-    while !(ok := FindText(&X, &Y, 190, 125, 447, 170, 0, 0, BossEvent)) {
-        ValentineMode()
-    }
-
-    AddToLog("Starting Valentine's Event")
-    StartEvent()
-
-
-    RestartStage(false)
 }
 
 StoryMode() {
@@ -279,16 +360,12 @@ StoryMode() {
     StoryMovement()
     
     ; Start stage
-    while !(ok:=FindText(&X, &Y, 322, 212, 445, 246, 0, 0, SelectAct)) {
+    while !(ok:=FindText(&X, &Y, 573, 485, 678, 514, 0, 0, SelectMode)) { ;fix results
         StoryMovement()
     }
 
     AddToLog("Starting " currentStoryMap " - " currentStoryAct)
-    if (UINavToggle.Value) {
-        StartStory(currentStoryMap, currentStoryAct)
-    } else {
-        StartStoryNoUI(currentStoryMap, currentStoryAct)
-    }
+    StartStoryNoUI(currentStoryMap, currentStoryAct)
 
     ; Handle play mode selection
     PlayHere(true)
@@ -307,7 +384,7 @@ RaidMode() {
     RaidMovement()
     
     ; Start stage
-    while !(ok := FindText(&X, &Y, 322, 212, 445, 246, 0, 0, SelectAct)) {
+    while !(ok := FindText(&X, &Y, 322, 212, 445, 246, 0, 0, Results)) { ;fix results
         RaidMovement()
     }
 
@@ -318,12 +395,7 @@ RaidMode() {
         StartRaidNoUI(currentRaidMap, currentRaidAct)
     }
     ; Handle play mode selection
-    if (MatchMaking.Value) {
-        FindMatch()
-    } else {
-        PlayHere(true)
-    }
-
+    PlayHere(true)
     RestartStage(false)
 }
 
@@ -336,28 +408,22 @@ RestartCustomStage() {
     ; Wait for loading
     CheckLoaded()
 
-    ; Check for wave selection and select fast waves
-    CheckForFastWaves()
-
     ; Check for vote screen and press start
     CheckForVoteScreen()
 
     ; Begin unit placement and management
-    PlacingUnits()
+    PlacingUnits(PlacementPatternDropdown.Text == "Custom")
     
     ; Monitor stage progress
     MonitorStage()
 }
 
 MonitorEndScreen() {
-    global mode, StoryDropdown, StoryActDropdown, ReturnLobbyBox, MatchMaking
+    global mode, StoryDropdown, StoryActDropdown, ReturnLobbyBox
 
     Loop {
         Sleep(3000)
-        FixClick(560, 560)
-        FixClick(560, 560)
-
-        if (FindText(&X, &Y, 276, 340, 359, 363, 0, 0, Results)) {
+        if (CheckForReturnToLobby()) {
             AddToLog("Found Lobby Text - Current Mode: " mode)
             Sleep(2000)
 
@@ -369,14 +435,7 @@ MonitorEndScreen() {
                 HandleDefaultMode()
             }
             return
-        }
-        
-        if (FindText(&X, &Y, 412, 441, 538, 475, 0, 0, ChallengeReturnToLobbyText)) {
-            AddToLog("Return to lobby for challenge")
-            ClickUntilGone(0, 0, 412, 441, 538, 475, ChallengeReturnToLobbyText, 0, -35)
-            return CheckLobby()
-        }
-        
+        }    
         Reconnect()
     }
 }
@@ -384,17 +443,17 @@ MonitorEndScreen() {
 HandleStoryMode() {
     AddToLog("Handling Story mode end")
     if (StoryActDropdown.Text != "Infinity") {
-        ClickUntilGone(0, 0, 140, 437, 659, 493, Retry1, (NextLevelBox.Value && lastResult = "win") ? 100 : 50, -30)
+        ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, (NextLevelBox.Value && lastResult = "win") ? 100 : 50, -30)
     } else {
         AddToLog("Story Infinity replay")
-        ClickUntilGone(0, 0, 140, 437, 659, 493, Retry1, 50, -30)
+        ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, 100, -30)
     }
     RestartStage(true)
 }
 
 HandleRaidMode() {
     AddToLog("Handling Raid end")
-    ClickUntilGone(0, 0, 140, 437, 659, 493, Retry1, ReturnLobbyBox.Value ? 100 : 50, -30)
+    ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, ReturnLobbyBox.Value ? 25 : 100, -30)
     if (ReturnLobbyBox.Value) {
         return CheckLobby()
     } else {
@@ -404,12 +463,12 @@ HandleRaidMode() {
 
 HandleDefaultMode() {
     AddToLog("Handling end case")
-    ClickUntilGone(0, 0, 140, 437, 659, 493, Retry1, ReturnLobbyBox.Value ? 150 : 50, -30)
+    ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, ReturnLobbyBox.Value ? 25 : 100, -30)
     if (ReturnLobbyBox.Value) {
          return CheckLobby()
     }
     if (ModeDropdown.Text = "Custom") {
-        return RestartCustomStage
+        return RestartCustomStage()
     }
     return RestartStage(true)
 }
@@ -427,19 +486,13 @@ MonitorStage() {
             FixClick(300, 400)  ; Move click
             lastClickTime := A_TickCount
         }
-        
-        ; Click through drops until results screen appears OR base health is confirmed
-        while !(CheckForResults()) {  
-            ClickThroughDrops()
-            Sleep(100)  ; Small delay to prevent high CPU usage while clicking
-        }
 
         AddToLog("Checking win/loss status")
         stageEndTime := A_TickCount
         stageLength := FormatStageTime(stageEndTime - stageStartTime)
 
-        if (ok := FindText(&X, &Y, 300, 190, 360, 250, 0, 0, UnitExit)) {
-            ClickUntilGone(0, 0, 300, 190, 360, 250, UnitExit, -4, -35)
+        if (ok := FindText(&X, &Y, 14, 387, 87, 406, 0, 0, UnitExistence)) {
+            ClickUntilGone(0, 0, 14, 387, 87, 406, UnitExistence, -4, -35)
         }
 
         if (ok := FindText(&X, &Y, 253, 209, 380, 237, 0, 0, VictoryText)) {
@@ -448,7 +501,7 @@ MonitorStage() {
             SendWebhookWithTime(true, stageLength)
             return MonitorEndScreen()
         }
-        else if (ok := FindText(&X, &Y, 260, 206, 372, 240, 0, 0, DefeatText)) {
+        else if (ok := FindText(&X, &Y, 125, 181, 266, 214, 0, 0, DefeatText)) {
             AddToLog("Defeat detected - Stage Length: " stageLength)
             loss += 1
             SendWebhookWithTime(false, stageLength)
@@ -459,44 +512,22 @@ MonitorStage() {
     }
 }
 
-ClickThroughDrops() {
-    global debug := false
-    if (debug) {
-        AddToLog("Clicking through item drops...")
-    }
-    Loop 10 {
-        FixClick(400, 495)
-        Sleep(500)
-        if CheckForResults() {
-            return
-        }
-    }
-}
-
 StoryMovement() {
-    ; Click Teleport
-    FixClick(75, 250)
-    sleep (1000)
-
-    ; Click Play/Portals
-    FixClick(280, 280)
-    sleep (1000)
-
-    ; Click search
-    FixClick(300, 178)
-    Sleep(1500)
-        
-    ; Type portal name
-    Send "Story"
-    Sleep(1500)
-
-    ; Click Portal
-    FixClick(196, 234)
-    Sleep 1000
-
     ; Click Play
-    FixClick(240, 265)
-    sleep (1000)
+    FixClick(35, 300)
+    Sleep (2000)
+    ;Walk To Room
+    SendInput ("{s down}")
+    SendInput ("{d down}")
+    Sleep (2500)
+    SendInput ("{s up}")
+    SendInput ("{d up}")
+    Sleep (1000)
+    SendInput ("{w down}")
+    SendInput ("{d down}")
+    Sleep (2500)
+    SendInput ("{w up}")
+    SendInput ("{d up}")
 }
 
 ChallengeMovement() {
@@ -523,27 +554,6 @@ ChallengeMovement() {
     ; Click Play
     FixClick(240, 265)
     sleep (1000)
-}
-
-ValentineMovement() {
-    FixClick(75, 250) ; Click Teleport
-    sleep (1000)
-    FixClick(520, 270) ; Click Play/Portals
-    sleep (1000)
-    SendInput ("{s down}")
-    Sleep(3000)
-    SendInput ("{s up}")
-    Sleep 200
-    KeyWait "S"
-    Sleep 200
-    SendInput ("{d down}")
-    Sleep(2500)
-    SendInput ("{d up}")
-    Sleep 200
-    KeyWait "D"
-    Sleep 200
-    SendInput ("{E}")
-    Sleep 1500
 }
 
 RaidMovement() {
@@ -618,22 +628,49 @@ StartStory(map, StoryActDropdown) {
     }
 }
 
-StartStoryNoUI(map, StoryActDropdown) {
-    FixClick(640, 70) ; Close Leaderboard
+StartStoryNoUI(map, act) {
+    AddToLog("Selecting map: " map " and act: " act)
+    
+    ; Closes Player leaderboard
+    FixClick(640, 70)
     Sleep(500)
-    if (mode = "Story" && StoryActDropdown = "Infinity") {
-        FixClick(284,433)
-        Sleep 200
+    ; Get Story map 
+    StoryMap := GetMapData("StoryMap", map)
+    
+    ; Scroll if needed
+    if (StoryMap.scrolls > 0) {
+        AddToLog("Scrolling down " StoryMap.scrolls " for " map)
+        MouseMove(210, 260)
+        loop StoryMap.scrolls {
+            SendInput("{WheelDown}")
+            Sleep(250)
+        }
     }
-    storyClickCoords := GetStoryClickCoords(map) ; Coords for Story Map
-    FixClick(storyClickCoords.x, storyClickCoords.y) ; Choose Story
-    Sleep 500
-    actClickCoords := GetStoryActClickCoords(StoryActDropdown) ; Coords for Story Act
-    FixClick(actClickCoords.x, actClickCoords.y) ; Choose Story Act
-    if (StoryActDropdown = "Infinity") {
-        FixClick(actClickCoords.x, actClickCoords.y) ; Choose Story Act again
+    Sleep(1000)
+    
+    ; Click on the map
+    FixClick(StoryMap.x, StoryMap.y)
+    Sleep(1000)
+    
+    ; Get act details
+    StoryAct := GetMapData("StoryAct", act)
+    
+    ; Scroll if needed for act
+    if (StoryAct.scrolls > 0) {
+        AddToLog("Scrolling down " StoryAct.scrolls " times for " act)
+        MouseMove(300, 240)
+        loop StoryAct.scrolls {
+            SendInput("{WheelDown}")
+            Sleep(250)
+        }
     }
-    Sleep 500
+    Sleep(1000)
+    
+    ; Click on the act
+    FixClick(StoryAct.x, StoryAct.y)
+    Sleep(1000)
+    
+    return true
 }
 
 StartRaidNoUI(map, RaidActDropdown) {
@@ -694,15 +731,6 @@ StartRaid(map, RaidActDropdown) {
     }
 }
 
-StartEvent() {
-    ; Handle play mode selection
-    if (MatchMaking.Value) {
-        FindMatch()
-    } else {
-        FixClick(220, 440) ; Click Solo
-    }
-}
-
 PlayHere(clickConfirm := true) {
     if (clickConfirm) {
         FixClick(385, 429) ; Click Confirm
@@ -710,23 +738,6 @@ PlayHere(clickConfirm := true) {
     }
     FixClick(60, 410) ; Click Start
     Sleep (300)
-}
-
-FindMatch() {
-    startTime := A_TickCount
-
-    Loop {
-        if (A_TickCount - startTime > 50000) {
-            AddToLog("Matchmaking timeout, restarting mode")
-            FixClick(355, 440)  ; Click Matchmaking to cancel
-            Sleep(300)
-            FixClick(500, 440)  ; Close Interface
-            return StartSelectedMode()
-        }
-        FixClick(355, 440)  ; Click Matchmaking
-        Sleep(300)
-        return true
-    }
 }
 
 GetStoryDownArrows(map) {
@@ -863,12 +874,8 @@ BasicSetup(replay := false) {
         Sleep 300
         CloseChat()
         Sleep 1500
+        ChangeSpeed()
     }
-
-    ; Wait for the loading screen to disappear instead of a fixed sleep
-    WaitForLoadingScreen()
-
-    CheckForFastWaves()
     Sleep 1500
     if (!replay) {
         Zoom()
@@ -878,21 +885,36 @@ BasicSetup(replay := false) {
     Sleep 300
 }
 
-WaitForLoadingScreen() {
-    startTime := A_TickCount
-    maxWait := 10000 ; Maximum wait time (10 seconds) to prevent infinite loop
-
-    while (IsLoadingScreenVisible()) {
-        Sleep 100 ; Check every 100ms
-        if (A_TickCount - startTime > maxWait)
-            break
-    }
+SetModulationModifier() {
+    FixClick(392, 432) ; Open Modifier
+    Sleep(500)
+    FixClick(343, 330) ; Click Modifier Box
+    Sleep(500)
+    Send(modulationEdit.Value) ; Enter Modifier
+    Sleep(500)
+    FixClick(400, 420) ; Confirm Modifier
+    Sleep(500)
 }
 
-IsLoadingScreenVisible() {
-    ; Replace this with an actual check for the loading screen
-    ; Example: checking for a specific pixel color, image, or UI element
-    return FindText(&X, &Y, 6, 586, 205, 620, 0, 0 LoadingScreen) ; Adjust as needed
+ChangeSpeed() {
+    if (ModeDropdown.Text = "Story") {
+        if (StoryActDropdown.Text = "Infinity") {
+            loop 3 {
+                FixClick(585, 550)
+                Sleep (500)
+            }
+        } else {
+            loop 2 {
+                FixClick(585, 550)
+                Sleep (500)
+            }
+        }
+    } else {
+        loop 2 {
+            FixClick(585, 550)
+            Sleep (500)
+        }
+    }
 }
 
 DetectMap() {
@@ -915,16 +937,8 @@ DetectMap() {
             return RaidDropdown.Text
         }
 
-        if (ModeDropdown.Text = "Valentine's Event") {
-            AddToLog("Map detected: " ModeDropdown.Text)
-            return ModeDropdown.Text
-        }
-
         mapPatterns := Map(
-            "Large Village", LargeVillage,
-            "Hollow Land", HollowLand,
-            "Monster City", MonsterCity,
-            "Academy Demon", AcademyDemon
+
 
         )
 
@@ -935,8 +949,8 @@ DetectMap() {
             }
         }
 
-        ; Check for Modifier Cards
-        if (ok := FindText(&X, &Y, 681, 381, 778, 434, 0, 0, ModifierCard)) {
+        ; Check for Unit Manager
+        if (ok := CheckForUnitManager()) {
             AddToLog("No Map Found or Movement Unnecessary")
             return "no map found"
         }
@@ -952,55 +966,12 @@ HandleMapMovement(MapName) {
     switch MapName {
         case "Large Village":
             MoveForLargeVillage()
-        case "Hollow Land":
-            MoveForHollowLand()   
-        case "Monster City":
-            MoveForMonsterCity()
-        case "Academy Demon":
-            MoveForAcademyDemon()       
-        case "Lawless City":
-            MoveForLawlessCity()    
-        case "Temple":
-            MoveForTemple()
-        case "Orc Castle":
-            MoveForOrcCastle()    
     }
 }
 
 MoveForLargeVillage() {
     Fixclick(586, 545, "Right")
     Sleep (6000)
-}
-
-MoveForHollowLand() {
-
-}
-
-MoveForOrcCastle() {
-    FixClick(400, 7, "Right")
-    Sleep (5500)
-}
-
-MoveForMonsterCity() {
-    Fixclick(515, 366, "Right")
-    Sleep (3500)
-}
-
-MoveForAcademyDemon() {
-    FixClick(452, 414, "Right")
-    Sleep (3500)
-}
-
-MoveForLawlessCity() {
-    Fixclick(507, 194, "Right")
-    Sleep (6000)
-}
-
-MoveForTemple() {
-    FixClick(747, 456, "Right")
-    Sleep 3400
-    FixClick(550, 300, "Right")
-    Sleep 3000
 }
 
 RestartStage(seamless := false) {
@@ -1024,7 +995,7 @@ RestartStage(seamless := false) {
     StartedGame()
 
     ; Begin unit placement and management
-    PlacingUnits()
+    PlacingUnits(PlacementPatternDropdown.Text == "Custom")
     
     ; Monitor stage progress
     MonitorStage()
@@ -1032,7 +1003,7 @@ RestartStage(seamless := false) {
 
 Reconnect() {   
     ; Check for Disconnected Screen using FindText
-    if (ok := FindText(&X, &Y, 330, 218, 474, 247, 0, 0, Disconnect)) {
+    if (ok := FindText(&X, &Y, 450, 410, 539, 427, 0, 0, Disconnect)) {
         AddToLog("Lost Connection! Attempting To Reconnect To Private Server...")
 
         psLink := FileExist("Settings\PrivateServer.txt") ? FileRead("Settings\PrivateServer.txt", "UTF-8") : ""
@@ -1042,30 +1013,26 @@ Reconnect() {
             AddToLog("Connecting to private server...")
             Run(psLink)
         } else {
-            Run("roblox://placeID=17282336195")  ; Public server if no PS file or empty
+            Run("roblox://placeID=16347800591")
         }
 
-        Sleep(300000)
-        
-        ; Restore window if it exists
-        if WinExist(rblxID) {
-            forceRobloxSize() 
-            Sleep(1000)
-        }
-        
-        ; Keep checking until we're back in
+        Sleep(5000)  
+
         loop {
             AddToLog("Reconnecting to Roblox...")
-            Sleep(5000)
-            
-            ; Check if we're back in lobby
-            if (ok := FindText(&X, &Y, 1, 264, 53, 304, 0, 0, AreaText)) {
-                AddToLog("Reconnected Successfully!")
-                return StartSelectedMode() ; Return to raids
+            Sleep(15000)
+
+            if WinExist(rblxID) {
+            forceRobloxSize()
+            moveRobloxWindow()
+            Sleep(1000)
             }
-            else {
-                ; If not in lobby, try reconnecting again
-                Reconnect()
+            
+            if (ok := FindText(&X, &Y, 746, 514, 789, 530, 0, 0, AreaText)) {
+                AddToLog("Reconnected Successfully!")
+                return StartSelectedMode()
+            } else {
+                Reconnect() 
             }
         }
     }
@@ -1096,14 +1063,14 @@ ClickUnit(x, y) {
 MaxUpgrade() {
     Sleep 500
     ; Check for max text
-    if (ok := FindText(&X, &Y, 120, 247, 236, 269, 0, 0, MaxText)) {
+    if (ok := FindText(&X, &Y, 89, 300, 181, 315, 0, 0, MaxUpgraded)) {
         return true
     }
     return false
 }
 
 UnitPlaced() {
-    if (WaitForUpgradeText(4500)) { ; Wait up to 4.5 seconds for the upgrade text to appear
+    if (WaitForUpgradeText(PlacementSpeed())) { ; Wait up to 4.5 seconds for the upgrade text to appear
         AddToLog("Unit Placed Successfully")
         FixClick(325, 185) ; Close upgrade menu
         return true
@@ -1114,24 +1081,12 @@ UnitPlaced() {
 WaitForUpgradeText(timeout := 4500) {
     startTime := A_TickCount
     while (A_TickCount - startTime < timeout) {
-        if (FindText(&X, &Y, 118, 246, 241, 273, 0, 0, UpgradeText)) {
+        if (FindText(&X, &Y, 88, 300, 143, 316, 0, 0, Upgrade)) {
             return true
         }
         Sleep 100  ; Check every 100ms
     }
     return false  ; Timed out, upgrade text was not found
-}
-
-CheckAbility() {
-    /*global AutoAbilityBox  ; Reference your checkbox
-    
-    ; Only check ability if checkbox is checked
-    if (AutoAbilityBox.Value) {
-        if (ok := FindText(&X, &Y, 342, 253, 401, 281, 0, 0, AutoOff)) {
-            FixClick(373, 237)  ; Turn ability on
-            AddToLog("Auto Ability Enabled")
-        }
-    }*/
 }
 
 UpgradeUnit(x, y) {
@@ -1156,14 +1111,11 @@ CheckLobby() {
 CheckLoaded() {
     loop {
         Sleep(1000)
-    
         ; Check for enemies alive
-        if (ok := FindText(&X, &Y, 734, 384, 794, 417, 0, 0, ModifierCard)) {
-            AddToLog("Successfully Loaded In")
+        if (ok := CheckForUnitManager()) {
             Sleep(1000)
             break
         }
-
         Reconnect()
     }
 }
@@ -1178,21 +1130,11 @@ StartedGame() {
 }
 
 StartSelectedMode() {
-    if (!ModeDropdown.Text = "Custom") {
-        FixClick(400,340)
-        FixClick(400,390)
-    }
     if (ModeDropdown.Text = "Story") {
         StoryMode()
     }
-    else if (ModeDropdown.Text = "Challenge") {
-        ChallengeMode()
-    }
     else if (ModeDropdown.Text = "Raid") {
         RaidMode()
-    }
-    else if (ModeDropdown.Text = "Valentine's Event") {
-        ValentineMode()
     }
     else if (ModeDropdown.Text = "Custom") {
         CustomMode()
@@ -1227,26 +1169,12 @@ GetNavKeys() {
 }
 
 CheckForVoteScreen() {
-    if (ok:=FindText(&X, &Y, 358, 107, 449, 130, 0, 0, VoteScreen)) {
+    if (ok:=FindText(&X, &Y, 633, 182, 729, 233, 0, 0, VoteScreen)) {
           AddToLog("Found Vote Screen")
           FixClick(365, 133)
           FixClick(365, 133)
           FixClick(365, 133)
           return true
-    }
-    return false
-}
-
-CheckForFastWaves() {
-    if (ok:=FindText(&X, &Y, 187, 184, 641, 441, 0, 0, FastWave)) {
-        Sleep 200
-        FindText().Click(X, Y, "L")
-        Sleep 200
-        FindText().Click(X, Y-20, "L")
-        Sleep 200
-        FindText().Click(X, Y+20, "L")
-        Sleep 200
-        return true
     }
     return false
 }
@@ -1454,7 +1382,7 @@ GenerateSpiralPoints(rectX := 4, rectY := 123, rectWidth := 795, rectHeight := 4
 }
 
 CheckEndAndRoute() {
-    if (ok := FindText(&X, &Y, 476, 442, 595, 473, 0, 0, ReturnToLobbyText)) {
+    if (ok := FindText(&X, &Y, 137, 422, 632, 460, 0, 0, ReturnToLobby)) {
         AddToLog("Found end screen")
         return MonitorEndScreen()
     }
@@ -1478,5 +1406,68 @@ PlacementSpeed() {
     speedIndex := PlaceSpeed.Value  ; Get the selected speed value
 
     if speedIndex is number  ; Ensure it's a number
-        sleep speeds[speedIndex]  ; Use the value directly from the array
+        return speeds[speedIndex]  ; Use the value directly from the array
+}
+
+GetMapData(type, name) {
+    data := Map(
+        "StoryMap", Map(
+            "Green Planet", {x: 210, y: 260, scrolls: 0},
+            "Ghoul City", {x: 210, y: 330, scrolls: 0},
+            "Sharkman Island", {x: 210, y: 410, scrolls: 0},
+
+            "Hidden Village", {x: 210, y: 345, scrolls: 1},
+            "Fairy Town", {x: 210, y: 430, scrolls: 1},
+
+            "Cursed Town", {x: 210, y: 360, scrolls: 2},
+            "Corp City", {x: 210, y: 425, scrolls: 2},
+
+            "Soul World", {x: 210, y: 365, scrolls: 3},
+            "Strongest City", {x: 210, y: 430, scrolls: 3}
+        ),
+        "StoryAct", Map(
+            "Act 1", {x: 380, y: 245, scrolls: 0},
+            "Act 2", {x: 380, y: 275, scrolls: 0},
+            "Act 3", {x: 380, y: 305, scrolls: 0},
+            "Act 4", {x: 380, y: 335, scrolls: 0},
+            "Act 5", {x: 380, y: 365, scrolls: 0},
+            "Act 6", {x: 380, y: 395, scrolls: 0},
+            "Infinity", {x: 380, y: 425, scrolls: 0},
+        ),
+        "RaidMap", Map(
+            "Ant Kingdom", {x: 630, y: 250, scrolls: 0},
+            "Sacred Planet", {x: 630, y: 300, scrolls: 0},
+            "Strange Town", {x: 630, y: 350, scrolls: 0},
+            "Ruined City", {x: 630, y: 400, scrolls: 0},
+            "Cursed Festival", {x: 630, y: 325, scrolls: 1},
+        ),
+        "RaidAct", Map(
+            "Act 1", {x: 285, y: 235, scrolls: 0},
+            "Act 2", {x: 285, y: 270, scrolls: 0},
+            "Act 3", {x: 285, y: 305, scrolls: 0},
+            "Act 4", {x: 285, y: 340, scrolls: 0},
+            "Act 5", {x: 285, y: 375, scrolls: 0}
+        ),
+        "LegendMap", Map(
+            "Magic Hills", {x: 630, y: 240, scrolls: 0},
+            "Spirit Invasion", {x: 630, y: 290, scrolls: 0},
+            "Space Center", {x: 630, y: 340, scrolls: 0},
+            "Fabled Kingdom", {x: 630, y: 390, scrolls: 0},
+            "Ruined City", {x: 630, y: 440, scrolls: 0},
+
+            "Virtual Dungeon", {x: 630, y: 350, scrolls: 1},
+            "Dungeon Throne", {x: 630, y: 405, scrolls: 1},
+            "Rain Village", {x: 630, y: 440, scrolls: 1}
+        ),
+        "LegendAct", Map(
+            "Act 1", {x: 285, y: 235, scrolls: 0},
+            "Act 2", {x: 285, y: 270, scrolls: 0},
+            "Act 3", {x: 285, y: 305, scrolls: 0},
+            "Act 4", {x: 285, y: 340, scrolls: 0},
+            "Act 5", {x: 285, y: 375, scrolls: 0},
+            "Act 6", {x: 285, y: 395, scrolls: 0}
+        )
+    )
+
+    return data.Has(type) && data[type].Has(name) ? data[type][name] : {}
 }
