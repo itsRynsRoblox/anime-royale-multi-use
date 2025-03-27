@@ -361,6 +361,10 @@ StoryMode() {
     
     ; Execute the movement pattern
     AddToLog("Moving to position for " currentStoryMap)
+
+    FixClick(564, 204) ; Exit Daily Reward
+    Sleep (1500)
+
     StoryMovement()
     
     ; Start stage
@@ -385,6 +389,10 @@ RaidMode() {
     
     ; Execute the movement pattern
     AddToLog("Moving to position for " currentRaidMap)
+
+    FixClick(564, 204) ; Exit Daily Reward
+    Sleep (1500)
+
     RaidMovement()
     
     ; Start stage
@@ -494,14 +502,11 @@ MonitorStage() {
         Sleep(1000)
 
         Reconnect()
-        
-        timeElapsed := A_TickCount - lastClickTime
-        if (ModeDropdown.Text = "Story" && StoryActDropdown.Text = "Infinity" && timeElapsed >= 30000) {  ; 30 seconds
-            FixClick(300, 400)  ; Move click
-            AddToLog("Clicking to prevent AFK kick")
-            lastClickTime := A_TickCount
-        }
 
+        while !CheckForReturnToLobby() {  
+            ClickThroughDrops()
+        }
+        
         AddToLog("Checking win/loss status")
         stageEndTime := A_TickCount
         stageLength := FormatStageTime(stageEndTime - stageStartTime)
@@ -525,6 +530,19 @@ MonitorStage() {
         SendWebhookWithTime(true, stageLength)
 
         return MonitorEndScreen()
+    }
+}
+
+ClickThroughDrops() {
+    if (debugMessages) {
+        AddToLog("Clicking through item drops...")
+    }
+    Loop 10 {
+        FixClick(400, 495)
+        Sleep(500)
+        if CheckForReturnToLobby() {
+            break
+        }
     }
 }
 
@@ -859,7 +877,7 @@ Zoom() {
     MouseMove(400, 400)  ; Move mouse down to angle camera down
     
     ; Zoom back out smoothly
-    Loop 20 {
+    Loop 12 {
         Send "{WheelDown}"
         Sleep 50
     }
@@ -1206,9 +1224,9 @@ GetNavKeys() {
 CheckForVoteScreen() {
     if (ok:=FindText(&X, &Y, 633, 182, 729, 233, 0, 0, VoteScreen)) {
           AddToLog("Found Vote Screen")
-          FixClick(365, 133)
-          FixClick(365, 133)
-          FixClick(365, 133)
+          FixClick(659, 190)
+          FixClick(659, 190)
+          FixClick(659, 190)
           return true
     }
     return false

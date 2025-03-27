@@ -117,7 +117,7 @@ OnConfirmClick(*) {
             return
         }
         AddToLog("Selected " StoryDropdown.Text " - " StoryActDropdown.Text)
-        ReturnLobbyBox.Visible := (StoryActDropdown.Text = "Infinity")
+        ReturnLobbyBox.Visible := false
         NextLevelBox.Visible := (StoryActDropdown.Text != "Infinity")
         HardModeBox.Visible := true
     }
@@ -134,14 +134,9 @@ OnConfirmClick(*) {
         AddToLog("Selected " RaidDropdown.Text " - " RaidActDropdown.Text)
         ReturnLobbyBox.Visible := true
     }
-    ; For Custom mode, check if coords are empty
+    ; For Custom mode
     else if (ModeDropdown.Text = "Custom") {
-        global savedCoords
-        if (!IsSet(savedCoords) || savedCoords.Length = 0) {
-            AddToLog("❌ No saved coordinates! Please capture some points first.")
-            return
-        }
-        AddToLog("Selected Custom")
+            AddToLog("Selected Custom")
     } else {
         AddToLog("Selected " ModeDropdown.Text " mode")
         ReturnLobbyBox.Visible := true

@@ -7,7 +7,7 @@
 ;Update Checker
 global repoOwner := "itsRynsRoblox"
 global repoName := "anime-royale-multi-use"
-global currentVersion := "1"
+global currentVersion := "1.1"
 ; Basic Application Info
 global aaTitle := "Ryn's Anime Royale Macro "
 global version := "v" . currentVersion
@@ -224,7 +224,7 @@ placementSaveBtn.OnEvent("Click", SaveSettings)
 aaMainUI.SetFont("s9")
 global NextLevelBox := aaMainUI.Add("Checkbox", "x900 y451 cffffff Checked", "Next Level")
 global ReturnLobbyBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Return To Lobby")
-global HardModeBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Hard Mode")
+global HardModeBox := aaMainUI.Add("Checkbox", "x1040 y476 cffffff Checked", "Hard Mode")
 global UINavToggle := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked Hidden", "UI Navigation")
 global PriorityUpgrade := aaMainUI.Add("CheckBox", "x900 y476 cffffff", "Priority Upgrade")
 PlacementPatternText := aaMainUI.Add("Text", "x1032 y390 w115 h20", "Placement Type")
