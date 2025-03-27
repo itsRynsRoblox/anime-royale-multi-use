@@ -7,7 +7,7 @@
 ;Update Checker
 global repoOwner := "itsRynsRoblox"
 global repoName := "anime-royale-multi-use"
-global currentVersion := "1.1"
+global currentVersion := "1.2"
 ; Basic Application Info
 global aaTitle := "Ryn's Anime Royale Macro "
 global version := "v" . currentVersion

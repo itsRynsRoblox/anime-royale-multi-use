@@ -157,41 +157,75 @@ PlacingUnits(untilSuccessful := true) {
 }
 
 AttemptUpgrade() {
-    global successfulCoordinates, PriorityUpgrade
-    global priority1, priority2, priority3, priority4, priority5, priority6
+    global successfulCoordinates, maxedCoordinates
 
     if (successfulCoordinates.Length = 0) {
         return ; No units placed yet
     }
 
-    AddToLog("Attempting to upgrade units...")
+    anyEnabled := false
+    for slotNum in [1, 2, 3, 4, 5, 6] {
+        enabled := "upgradeEnabled" slotNum
+        enabled := %enabled%
+        enabled := enabled.Value
+        if (enabled) {
+            anyEnabled := true
+            break
+        }
+    }
+
+    if (!anyEnabled) {
+        if (debugMessages) {
+            AddToLog("No units enabled - skipping")
+        }
+        return
+    }
+
+    unitsToRemove := []  ; Store units that reach max level
 
     if (PriorityUpgrade.Value) {
-        AddToLog("Using priority-based upgrading")
-        
+        if (debugMessages) {
+            AddToLog("Using priority-based upgrading")
+        }
+
         ; Loop through priority levels (1-6) and upgrade all matching units
         for priorityNum in [1, 2, 3, 4, 5, 6] {
             upgradedThisRound := false
 
-            for index, coord in successfulCoordinates.Clone() { ; Clone to allow removal
+            for index, coord in successfulCoordinates { 
+                ; Check if upgrading is enabled for this unit's slot
+                upgradeEnabled := "upgradeEnabled" coord.slot
+                upgradeEnabled := %upgradeEnabled%
+                if (!upgradeEnabled.Value) {
+                    if (debugMessages) {
+                        AddToLog("Skipping Unit " coord.slot " - Upgrading Disabled")
+                    }
+                    continue
+                }
+
                 ; Get the priority value for this unit's slot
                 priority := "priority" coord.slot
                 priority := %priority%
 
                 if (priority.Text = priorityNum) {
-                    UpgradeUnit(coord.x, coord.y)
-
-                    if CheckForReturnToLobby() {
-                        AddToLog("Stage ended during upgrades, proceeding to results")
-                        successfulCoordinates := []
-                        return MonitorStage()
+                    if (debugMessages) {
+                        AddToLog("Upgrading Unit " coord.slot " at (" coord.x ", " coord.y ")")
                     }
+                    UpgradeUnit(coord.x, coord.y)
 
                     if MaxUpgrade() {
                         AddToLog("Max upgrade reached for Unit " coord.slot)
                         successfulCoordinates.RemoveAt(index)
-                        FixClick(325, 185) ; Close upgrade menu
+                        maxedCoordinates.Push(coord)
+                        FixClick(740, 545) ; Click away from unit
                         continue
+                    }
+
+                    if CheckForReturnToLobby() {
+                        AddToLog("Stage ended during upgrades, proceeding to results")
+                        successfulCoordinates := []
+                        maxedCoordinates := []
+                        return MonitorStage()
                     }
 
                     Sleep(200)
@@ -209,20 +243,35 @@ AttemptUpgrade() {
         }
     } else {
         ; Normal (non-priority) upgrading - upgrade all available units
-        for index, coord in successfulCoordinates.Clone() {
-            UpgradeUnit(coord.x, coord.y)
-
-            if CheckForReturnToLobby() {
-                AddToLog("Stage ended during upgrades, proceeding to results")
-                successfulCoordinates := []
-                return MonitorStage()
+        for index, coord in successfulCoordinates {
+            ; Check if upgrading is enabled for this unit's slot
+            upgradeEnabled := "upgradeEnabled" coord.slot
+            upgradeEnabled := %upgradeEnabled%
+            if (!upgradeEnabled.Value) {
+                if (debugMessages) {
+                    AddToLog("Skipping Unit " coord.slot " - Upgrading Disabled")
+                }
+                continue
             }
+
+            if (debugMessages) {
+                AddToLog("Upgrading Unit " coord.slot " at (" coord.x ", " coord.y ")")
+            }
+            UpgradeUnit(coord.x, coord.y)
 
             if MaxUpgrade() {
                 AddToLog("Max upgrade reached for Unit " coord.slot)
                 successfulCoordinates.RemoveAt(index)
-                FixClick(325, 185) ; Close upgrade menu
+                maxedCoordinates.Push(coord)
+                FixClick(740, 545) ; Click away from unit
                 continue
+            }
+
+            if CheckForReturnToLobby() {
+                AddToLog("Stage ended during upgrades, proceeding to results")
+                successfulCoordinates := []
+                maxedCoordinates := []
+                return MonitorStage()
             }
 
             Sleep(200)
@@ -231,10 +280,13 @@ AttemptUpgrade() {
             CheckEndAndRoute()
         }
     }
+    if (debugMessages) {
+        AddToLog("Upgrade attempt completed")
+    }
 }
 
 UpgradeUnits() {
-    global successfulCoordinates, PriorityUpgrade, priority1, priority2, priority3, priority4, priority5, priority6
+    global successfulCoordinates
 
     totalUnits := Map()    
     upgradedCount := Map()  
