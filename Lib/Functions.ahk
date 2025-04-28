@@ -18,11 +18,6 @@ SaveUINavSettings(*) {
     
     FileAppend(UINavBox.Value, "Settings\UINavigation.txt", "UTF-8")
 }
-
-;Opens discord Link
-OpenDiscordLink() {
-    Run("https://discord.gg/mistdomain")
- }
  
  ;Minimizes the UI
  minimizeUI(*){
@@ -63,24 +58,18 @@ OpenDiscordLink() {
     HardModeBox.Visible := false
     
     if (selected = "Story") {
-        if (customOnly) {
-            AddToLog("⚠️ Story isn't ready yet, Custom is available for now.")
-            return
-        }
         StoryDropdown.Visible := true
         StoryActDropdown.Visible := true
         HardModeBox.Visible := true
         mode := "Story"
     } else if (selected = "Raid") {
-        if (customOnly) {
-            AddToLog("⚠️ Raid isn't ready yet, Custom is available for now.")
-            return
-        }
         RaidDropdown.Visible := true
         RaidActDropdown.Visible := true
         mode := "Raid"
     } else if (selected = "Custom") {
         mode := "Custom"
+    } else {
+        mode := selected
     }
 }
 
@@ -108,10 +97,6 @@ OnConfirmClick(*) {
 
     ; For Story mode, check if both Story and Act are selected
     if (ModeDropdown.Text = "Story") {
-        if (customOnly) {
-            AddToLog("⚠️ Story isn't ready yet, Custom is available for now.")
-            return
-        }
         if (StoryDropdown.Text = "" || StoryActDropdown.Text = "") {
             AddToLog("Please select both Story and Act before confirming")
             return
@@ -123,10 +108,6 @@ OnConfirmClick(*) {
     }
     ; For Raid mode, check if both Raid and RaidAct are selected
     else if (ModeDropdown.Text = "Raid") {
-        if (customOnly) {
-            AddToLog("⚠️ Raid isn't ready yet, Custom is available for now")
-            return
-        }
         if (RaidDropdown.Text = "" || RaidActDropdown.Text = "") {
             AddToLog("Please select both Raid and Act before confirming")
             return
@@ -165,22 +146,6 @@ FixClick(x, y, LR := "Left") {
     Sleep(50)
 }
 
-TogglePriorityDropdowns(*) {
-    global PriorityUpgrade, priority1, priority2, priority3, priority4, priority5, priority6
-    shouldShow := PriorityUpgrade.Value
-
-    priority1.Visible := shouldShow
-    priority2.Visible := shouldShow
-    priority3.Visible := shouldShow
-    priority4.Visible := shouldShow
-    priority5.Visible := shouldShow
-    priority6.Visible := shouldShow
-
-    for unit in UnitData {
-        unit.PriorityText.Visible := shouldShow
-    }
-}
-
 GetWindowCenter(WinTitle) {
     x := 0 y := 0 Width := 0 Height := 0
     WinGetPos(&X, &Y, &Width, &Height, WinTitle)
@@ -191,67 +156,163 @@ GetWindowCenter(WinTitle) {
     return { x: centerX, y: centerY, width: Width, height: Height }
 }
 
-FindAndClickColor(targetColor := 0xFAFF4D, searchArea := [0, 0, GetWindowCenter(rblxID).Width, GetWindowCenter(rblxID).Height]) {
-    ; Extract the search area boundaries
-    x1 := searchArea[1], y1 := searchArea[2], x2 := searchArea[3], y2 := searchArea[4]
-
-    ; Perform the pixel search
-    if (PixelSearch(&foundX, &foundY, x1, y1, x2, y2, targetColor, 0)) {
-        ; Color found, click on the detected coordinates
-        FixClick(foundX, foundY, "Right")
-        AddToLog("Color found and clicked at: X" foundX " Y" foundY)
-        return true
-
-    }
-}
-
-FindAndClickImage(imagePath, searchArea := [0, 0, A_ScreenWidth, A_ScreenHeight]) {
-
-    AddToLog(imagePath)
-
-    ; Extract the search area boundaries
-    x1 := searchArea[1], y1 := searchArea[2], x2 := searchArea[3], y2 := searchArea[4]
-
-    ; Perform the image search
-    if (ImageSearch(&foundX, &foundY, x1, y1, x2, y2, imagePath)) {
-        ; Image found, click on the detected coordinates
-        FixClick(foundX, foundY, "Right")
-        AddToLog("Image found and clicked at: X" foundX " Y" foundY)
-        return true
-    }
-}
-
-FindAndClickText(textToFind, searchArea := [0, 0, GetWindowCenter(rblxID).Width, GetWindowCenter(rblxID).Height]) {
-    ; Extract the search area boundaries
-    x1 := searchArea[1], y1 := searchArea[2], x2 := searchArea[3], y2 := searchArea[4]
-
-    ; Perform the text search
-    if (FindText(&foundX, &foundY, x1, y1, x2, y2, textToFind)) {
-        ; Text found, click on the detected coordinates
-        FixClick(foundX, foundY, "Right")
-        AddToLog("Text found and clicked at: X" foundX " Y" foundY)
-        return true
-    }
-}
-
-CheckForBaseHealth() {
-    searchArea := [254, 45, 295, 8]
-    ; Extract the search area boundaries
-    x1 := searchArea[1], y1 := searchArea[2], x2 := searchArea[3], y2 := searchArea[4]
-
-    ; Perform the pixel search
-    if (PixelSearch(&foundX, &foundY, x1, y1, x2, y2, 0x55FE7F, 2)) {
-        Sleep (100)
-        return true
-    }
-
-    return false
-}
-
 OpenGithub() {
     Run("https://github.com/itsRynsRoblox?tab=repositories")
 }
 
 OpenDiscord() {
-    Run("https://discord.gg/6DWgB9XMTV")
+    Run("https://discord.gg/mistdomain")
+}
+
+ClickReturnToLobby() {
+    ClickUntilGone(0, 0, 151, 433, 655, 469, ReturnToLobbyText, 0, -35)
+}
+
+ClickNextRoom() {
+    ClickUntilGone(0, 0, 151, 433, 655, 469, ReturnToLobbyText, -420, -35)
+}
+
+ClickReplay() {
+    ClickUntilGone(0, 0, 151, 433, 655, 469, ReturnToLobbyText, -150, -35)
+}
+
+ClickUntilGone(x, y, searchX1, searchY1, searchX2, searchY2, textToFind, offsetX:=0, offsetY:=0, textToFind2:="") {
+    while (ok := FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind) || 
+           textToFind2 && FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind2)) {
+        if (offsetX != 0 || offsetY != 0) {
+            FixClick(X + offsetX, Y + offsetY)  
+        } else {
+            FixClick(x, y) 
+        }
+        Sleep(1000)
+    }
+}
+
+RightClickUntilGone(x, y, searchX1, searchY1, searchX2, searchY2, textToFind, offsetX:=0, offsetY:=0, textToFind2:="") {
+    while (ok := FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind) || 
+           textToFind2 && FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind2)) {
+        if (offsetX != 0 || offsetY != 0) {
+            FixClick(X + offsetX, Y + offsetY, "Right")  
+        } else {
+            FixClick(x, y, "Right") 
+        }
+        Sleep(1000)
+    }
+}
+
+SetGameSpeed() {
+    if (ModeDropdown.Text = "Story") {
+        AddToLog("Setting game speed to 3x")
+        loop 3 {
+            FixClick(588, 553) ; Click Game Speed
+            Sleep(300)
+        }
+    }
+}
+
+ClickWhileWaiting() {
+    Loop 10 {
+        FixClick(400, 495)
+        Sleep(500)
+        if CheckForReturnToLobby() {
+            break
+        }
+    }
+}
+
+CloseChat() {
+    if (ok := FindText(&X, &Y, 123, 50, 156, 79, 0, 0, OpenChat)) {
+        AddToLog "Closing Chat"
+        FixClick(138, 30) ;close chat
+    }
+}
+
+BasicSetup(replay := false) {
+    if (!replay) {
+        SendInput("{Tab}") ; Closes Player leaderboard
+        Sleep 300
+        FixClick(564, 72) ; Closes Player leaderboard
+        Sleep 300
+        CloseChat()
+        Sleep 1500
+        ;ChangeSpeed()
+        Sleep 1500
+        Zoom()
+        Sleep 1500
+    }
+    ;CheckForVoteScreen()
+    Sleep 300
+}
+
+SetModulationModifier() {
+    if (ModeDropdown.Text = "Story") {
+        FixClick(378, 465)
+    } else {
+        FixClick(392, 432) ; Open Modifier
+    }
+    Sleep(500)
+    FixClick(343, 330) ; Click Modifier Box
+    Sleep(500)
+    Send(modulationEdit.Value) ; Enter Modifier
+    Sleep(500)
+    FixClick(400, 420) ; Confirm Modifier
+    Sleep(500)
+}
+
+ChangeSpeed() {
+    if (ModeDropdown.Text = "Story") {
+        if (StoryActDropdown.Text = "Infinity") {
+            loop 3 {
+                FixClick(585, 550)
+                Sleep (500)
+            }
+        } else {
+            loop 2 {
+                FixClick(585, 550)
+                Sleep (500)
+            }
+        }
+    } else {
+        loop 2 {
+            FixClick(585, 550)
+            Sleep (500)
+        }
+    }
+}
+
+Reconnect() {   
+    ; Check for Disconnected Screen using FindText
+    if (ok := FindText(&X, &Y, 450, 410, 539, 427, 0, 0, Disconnect)) {
+        AddToLog("Lost Connection! Attempting To Reconnect To Private Server...")
+
+        psLink := FileExist("Settings\PrivateServer.txt") ? FileRead("Settings\PrivateServer.txt", "UTF-8") : ""
+
+        ; Reconnect to Ps
+        if FileExist("Settings\PrivateServer.txt") && (psLink := FileRead("Settings\PrivateServer.txt", "UTF-8")) {
+            AddToLog("Connecting to private server...")
+            Run(psLink)
+        } else {
+            Run("roblox://placeID=16347800591")
+        }
+
+        Sleep(5000)  
+
+        loop {
+            AddToLog("Reconnecting to Roblox...")
+            Sleep(15000)
+
+            if WinExist(rblxID) {
+            forceRobloxSize()
+            moveRobloxWindow()
+            Sleep(1000)
+            }
+            
+            if (ok := FindText(&X, &Y, 746, 514, 789, 530, 0, 0, AreaText)) {
+                AddToLog("Reconnected Successfully!")
+                return StartSelectedMode()
+            } else {
+                Reconnect() 
+            }
+        }
+    }
 }

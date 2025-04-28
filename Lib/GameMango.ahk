@@ -18,6 +18,10 @@ F6:: {
 
 }
 
+F7::{
+    Run (A_ScriptDir "\Lib\FindText.ahk")
+}
+
 
 StartMacro(*) {
     if (!ValidateMode()) {
@@ -39,7 +43,7 @@ TogglePause(*) {
 
 CheckForReturnToLobby() {
     ; Check for return to lobby text
-    if (ok := FindText(&X, &Y, 136, 420, 565, 465, 0, 0, ReturnToLobby)) {
+    if (ok := FindText(&X, &Y, 151, 433, 655, 469, 0, 0, ReturnToLobbyText)) {
         return true
     }
     return false
@@ -47,7 +51,7 @@ CheckForReturnToLobby() {
 
 CheckForUnitManager() {
     ; Check for unit manager text
-    if (ok := FindText(&X, &Y, 701, 318, 784, 344, 0.10, 0.10, UnitManager)) {
+    if (ok := FindText(&X, &Y, 768, 286, 785, 314, 0.05, 0.10, UnitManager)) {
         return true
     }
     return false
@@ -75,7 +79,7 @@ PlacingUnits(untilSuccessful := true) {
         return MonitorStage()
     }
 
-    placementPoints := PlacementPatternDropdown.Text = "Custom" ? GenerateCustomPoints() : PlacementPatternDropdown.Text = "Circle" ? GenerateCirclePoints() : PlacementPatternDropdown.Text = "Grid" ? GenerateGridPoints() : PlacementPatternDropdown.Text = "Spiral" ? GenerateSpiralPoints() : PlacementPatternDropdown.Text = "Up and Down" ? GenerateUpandDownPoints() : GenerateRandomPoints()
+    placementPoints := PlacementPatternDropdown.Text = "Custom" ? UseCustomPoints() : PlacementPatternDropdown.Text = "Circle" ? GenerateCirclePoints() : PlacementPatternDropdown.Text = "Grid" ? GenerateGridPoints() : PlacementPatternDropdown.Text = "Spiral" ? GenerateSpiralPoints() : PlacementPatternDropdown.Text = "Up and Down" ? GenerateUpandDownPoints() : GenerateRandomPoints()
 
     ; Go through each slot
     for slotNum in [1, 2, 3, 4, 5, 6] {
@@ -124,6 +128,7 @@ PlacingUnits(untilSuccessful := true) {
                             FixClick(700, 560) ; Move Click
                             AttemptUpgrade()
                         }
+                        AttemptUpgrade()
                     }
                 }
                 ; If untilSuccessful is true, keep trying the same point until it works
@@ -142,7 +147,6 @@ PlacingUnits(untilSuccessful := true) {
                             return MonitorStage()
 
                         Reconnect()
-                        CheckEndAndRoute()
                         Sleep(500) ; Prevents spamming clicks too fast
                     }
                 }
@@ -231,7 +235,6 @@ AttemptUpgrade() {
                     Sleep(200)
                     FixClick(740, 545) ; Click away from unit
                     Reconnect()
-                    CheckEndAndRoute()
 
                     upgradedThisRound := true
                 }
@@ -277,7 +280,6 @@ AttemptUpgrade() {
             Sleep(200)
             FixClick(740, 545) ; Click away from unit
             Reconnect()
-            CheckEndAndRoute()
         }
     }
     if (debugMessages) {
@@ -352,9 +354,8 @@ UpgradeUnits() {
                                 }
 
                                 Sleep(200)
-                                FixClick(560, 560) ; Move Click
+                                FixClick(700, 560) ; Move Click
                                 Reconnect()
-                                CheckEndAndRoute()
                             }
                         }
                         
@@ -396,9 +397,8 @@ UpgradeUnits() {
                 }
 
                 Sleep(200)
-                FixClick(560, 560) ; Move Click
+                FixClick(700, 560) ; Move Click
                 Reconnect()
-                CheckEndAndRoute()
             }
         }
     }
@@ -425,9 +425,7 @@ StoryMode() {
     }
 
     AddToLog("Starting " currentStoryMap " - " currentStoryAct)
-    StartStoryNoUI(currentStoryMap, currentStoryAct)
-
-    ; Handle play mode selection
+    StartStory(currentStoryMap, currentStoryAct)
     PlayHere(true)
     RestartStage(false)
 }
@@ -453,8 +451,7 @@ RaidMode() {
     }
 
     AddToLog("Starting " currentRaidMap " - " currentRaidAct)
-    StartRaidNoUI(currentRaidMap, currentRaidAct)
-    ; Handle play mode selection
+    StartRaid(currentRaidMap, currentRaidAct)
     PlayHere(true)
     RestartStage(false)
 }
@@ -471,6 +468,9 @@ RestartCustomStage() {
     ; Check for vote screen and press start
     CheckForVoteScreen()
 
+    ; Wait for game to actually start
+    StartedGame()
+
     ; Begin unit placement and management
     PlacingUnits(PlacementPatternDropdown.Text == "Custom")
     
@@ -478,31 +478,18 @@ RestartCustomStage() {
     MonitorStage()
 }
 
-SetGameSpeed() {
-    if (ModeDropdown.Text = "Story") {
-        AddToLog("Setting game speed to 3x")
-        loop 3 {
-            FixClick(588, 553) ; Click Game Speed
-            Sleep(300)
-        }
-    }
-}
-
 MonitorEndScreen() {
-    global mode
 
     Loop {
-        Sleep(3000)
+        Sleep(1000)
         if (CheckForReturnToLobby()) {
-            AddToLog("Found Lobby Text - Current Mode: " mode)
-            Sleep(2000)
-
-
-
-            if (mode = "Story") {
+            AddToLog("Found Lobby Text - Current Mode: " ModeDropdown.Text)
+            if (ModeDropdown.Text = "Story") {
                 HandleStoryMode()
-            } else if (mode = "Raid") {
+            } else if (ModeDropdown.Text = "Raid") {
                 HandleRaidMode()
+            } else if (ModeDropdown.Text = "Tower") {
+                HandleTowerMode()
             } else {
                 HandleDefaultMode()
             }
@@ -513,31 +500,48 @@ MonitorEndScreen() {
 }
 
 HandleStoryMode() {
-    AddToLog("Handling Story mode end")
-    if (StoryActDropdown.Text != "Infinity") {
-        ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, (NextLevelBox.Value && lastResult = "win") ? 250 : 100, -30)
+    global lastResult
+    if (ReturnLobbyBox.Value) {
+        ClickReturnToLobby()
+        return CheckLobby()
     } else {
-        AddToLog("Story Infinity replay")
-        ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, 100, -30)
+        if (lastResult "win" && NextLevelBox.Value) {
+            ClickNextRoom()
+        } else {
+            ClickReplay()
+        }
+        return RestartStage(true)
     }
-    RestartStage(true)
+}
+
+HandleTowerMode() {
+    if (ReturnLobbyBox.Value) {
+        ClickReturnToLobby()
+        return CheckLobby()
+    } else {
+        ClickNextRoom()
+        return RestartStage(true)
+    }
 }
 
 HandleRaidMode() {
     AddToLog("Handling Raid end")
-    ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, ReturnLobbyBox.Value ? 25 : 100, -30)
     if (ReturnLobbyBox.Value) {
+        ClickReturnToLobby()
         return CheckLobby()
     } else {
+        ClickReplay()
         return RestartStage(true)
     }
 }
 
 HandleDefaultMode() {
     AddToLog("Handling end case")
-    ClickUntilGone(0, 0, 136, 420, 565, 465, ReturnToLobby, ReturnLobbyBox.Value ? 25 : 100, -30)
     if (ReturnLobbyBox.Value) {
-         return CheckLobby()
+        ClickReturnToLobby()
+        return CheckLobby()
+    } else {
+        ClickReplay()
     }
     if (ModeDropdown.Text = "Custom") {
         return RestartCustomStage()
@@ -556,24 +560,20 @@ MonitorStage() {
         Reconnect()
 
         while !CheckForReturnToLobby() {  
-            ClickThroughDrops()
+            ClickWhileWaiting()
         }
         
         AddToLog("Checking win/loss status")
         stageEndTime := A_TickCount
         stageLength := FormatStageTime(stageEndTime - stageStartTime)
 
-        if (ok := FindText(&X, &Y, 15, 388, 84, 406, 0.10, 0.10, UnitExistence)) {
-            SendInput("{X}")
-        }
-
-        if (ok := FindText(&X, &Y, 150, 180, 350, 260, 0, 0, DefeatText)) {
+        if (ok := FindText(&X, &Y, 144, 171, 355, 203, 0, 0, DefeatText)) {
             AddToLog("Defeat detected - Stage Length: " stageLength)
             isWin := false
             loss += 1
         }
     
-        if (ok := FindText(&X, &Y, 130, 183, 292, 211, 0.10, 0.10, VictoryText)) {
+        if (ok := FindText(&X, &Y, 144, 171, 355, 203, 0.10, 0.10, VictoryText)) {
             AddToLog("Victory detected - Stage Length: " stageLength)
             isWin := true
             Wins += 1
@@ -582,19 +582,6 @@ MonitorStage() {
         SendWebhookWithTime(true, stageLength)
 
         return MonitorEndScreen()
-    }
-}
-
-ClickThroughDrops() {
-    if (debugMessages) {
-        AddToLog("Clicking through item drops...")
-    }
-    Loop 10 {
-        FixClick(400, 495)
-        Sleep(500)
-        if CheckForReturnToLobby() {
-            break
-        }
     }
 }
 
@@ -640,56 +627,7 @@ RaidMovement() {
     SendInput ("{w up}")
 }
 
-StartStory(map, StoryActDropdown) {
-    FixClick(640, 70) ; Closes Player leaderboard
-    Sleep(500)
-
-    FixClick(502, 465) ; Friends Only
-    Sleep(500)
-    navKeys := GetNavKeys()
-    for key in navKeys {
-        SendInput("{" key "}")
-    }
-    Sleep(500)
-
-    leftArrows := 7 ; Go Over To Story
-    Loop leftArrows {
-        SendInput("{Left}")
-        Sleep(200)
-    }
-
-    downArrows := GetStoryDownArrows(map) ; Map selection down arrows
-    Loop downArrows {
-        SendInput("{Down}")
-        Sleep(200)
-    }
-
-    SendInput("{Enter}") ; Select storymode
-    Sleep(500)
-
-    SendInput("{Right}") ; Go to act selection
-    Sleep(1000)
-    SendInput("{Right}")
-    Sleep(1000)
-    
-    actArrows := GetStoryActDownArrows(StoryActDropdown) ; Act selection down arrows
-    if (mode = "Story" && StoryActDropdown = "Infinity") {
-        FixClick(284,433)
-        Sleep 200
-    }
-    Loop actArrows {
-        SendInput("{Down}")
-        Sleep(200)
-    }
-    
-    SendInput("{Enter}") ; Select Act
-    Sleep(500)
-    for key in navKeys {
-        SendInput("{" key "}")
-    }
-}
-
-StartStoryNoUI(map, act) {
+StartStory(map, act) {
     AddToLog("Selecting map: " map " and act: " act)
     
     ; Closes Player leaderboard
@@ -742,7 +680,7 @@ StartStoryNoUI(map, act) {
     return true
 }
 
-StartRaidNoUI(map, act) {
+StartRaid(map, act) {
     AddToLog("Selecting map: " map " and act: " act)
     
     ; Closes Player leaderboard
@@ -792,48 +730,6 @@ StartChallenge() {
     Sleep(500)
 }
 
-StartRaid(map, RaidActDropdown) {
-    FixClick(640, 70) ; Closes Player leaderboard
-    Sleep(500)
-    navKeys := GetNavKeys()
-    for key in navKeys {
-        SendInput("{" key "}")
-    }
-    Sleep(500)
-
-    leftArrows := 7 ; Go Over To Story
-    Loop leftArrows {
-        SendInput("{Left}")
-        Sleep(200)
-    }
-
-    downArrows := GetRaidDownArrows(map) ; Map selection down arrows
-    Loop downArrows {
-        SendInput("{Down}")
-        Sleep(200)
-    }
-
-    SendInput("{Enter}") ; Select storymode
-    Sleep(500)
-
-    SendInput("{Right}") ; Go to act selection
-    Sleep(1000)
-    SendInput("{Right}")
-    Sleep(1000)
-    
-    actArrows := GetRaidActDownArrows=(RaidActDropdown) ; Act selection down arrows
-    Loop actArrows {
-        SendInput("{Down}")
-        Sleep(200)
-    }
-    
-    SendInput("{Enter}") ; Select Act
-    Sleep(500)
-    for key in navKeys {
-        SendInput("{" key "}")
-    }
-}
-
 PlayHere(clickConfirm := true) {
     if (clickConfirm) {
         FixClick(620, 465) ; Click Confirm
@@ -841,76 +737,6 @@ PlayHere(clickConfirm := true) {
     }
     FixClick(158, 473) ; Click Start
     Sleep (500)
-}
-
-GetStoryDownArrows(map) {
-    switch map {
-        case "Large Village": return 0
-        case "Hollow Land": return 1
-        case "Monster City": return 2
-        case "Academy Demon": return 3
-    }
-}
-
-GetStoryClickCoords(map) {
-    switch map {
-        case "Large Village": return { x: 235, y: 240 }
-        case "Hollow Land": return { x: 235, y: 295 }
-        case "Monster City": return { x: 235, y: 350 }
-        case "Academy Demon": return { x: 235, y: 400 }
-    }
-}
-
-GetStoryActClickCoords(StoryActDropdown) {
-    switch StoryActDropdown {
-        case "Act 1": return { x: 380, y: 230 }
-        case "Act 2": return { x: 380, y: 260 }
-        case "Act 3": return { x: 380, y: 290 }
-        case "Act 4": return { x: 380, y: 320 }
-        case "Act 5": return { x: 380, y: 350 }
-        case "Act 6": return { x: 380, y: 380 }
-        case "Infinity": return { x: 380, y: 405 }
-    }
-}
-
-GetRaidClickCoords(map) {
-    switch map {
-        case "Lawless City": return { x: 235, y: 240 }
-        case "Temple": return { x: 235, y: 295 }
-        case "Orc Castle": return { x: 235, y: 350 }
-    }
-}
-
-GetRaidActClickCoords(StoryActDropdown) {
-    switch StoryActDropdown {
-        case "Act 1": return { x: 380, y: 230 }
-    }
-}
-
-GetStoryActDownArrows(StoryActDropdown) {
-    switch StoryActDropdown {
-        case "Act 1": return 0
-        case "Act 2": return 1
-        case "Act 3": return 2
-        case "Act 4": return 3
-        case "Act 5": return 4
-        case "Act 6": return 5
-        case "Infinity": return 6
-    }
-}
-
-GetRaidDownArrows(map) {
-    switch map {
-        case "Lawless City": return 0
-        case "Temple": return 1
-        case "Orc Castle": return 2
-    }
-}
-
-GetRaidActDownArrows(RaidActDropdown) {
-    switch RaidActDropdown {
-        case "Act 1": return 0
-    }
 }
 
 Zoom() {
@@ -938,90 +764,6 @@ Zoom() {
     MouseMove(400, 300)
 }
 
-TpSpawn() {
-    FixClick(26, 570) ;click settings
-    Sleep 300
-    FixClick(400, 215)
-    Sleep 300
-    loop 4 {
-        Sleep 150
-        SendInput("{WheelDown 1}") ;scroll
-    }
-    Sleep 300
-    if (ok := FindText(&X, &Y, 215, 160, 596, 480, 0, 0, Spawn)) {
-        AddToLog("Found Teleport to Spawn button")
-        FixClick(X + 100, Y - 30)
-    } else {
-        AddToLog("Could not find Teleport button")
-    }
-    Sleep 300
-    FixClick(583, 147)
-    Sleep 300
-
-    ;
-
-}
-
-CloseChat() {
-    if (ok := FindText(&X, &Y, 123, 50, 156, 79, 0, 0, OpenChat)) {
-        AddToLog "Closing Chat"
-        FixClick(138, 30) ;close chat
-    }
-}
-
-BasicSetup(replay := false) {
-    if (!replay) {
-        SendInput("{Tab}") ; Closes Player leaderboard
-        Sleep 300
-        FixClick(564, 72) ; Closes Player leaderboard
-        Sleep 300
-        CloseChat()
-        Sleep 1500
-        ChangeSpeed()
-        Sleep 1500
-        Zoom()
-        Sleep 1500
-    }
-    CheckForVoteScreen()
-    Sleep 300
-}
-
-SetModulationModifier() {
-    if (ModeDropdown.Text = "Story") {
-        FixClick(378, 465)
-    } else {
-        FixClick(392, 432) ; Open Modifier
-    }
-    Sleep(500)
-    FixClick(343, 330) ; Click Modifier Box
-    Sleep(500)
-    Send(modulationEdit.Value) ; Enter Modifier
-    Sleep(500)
-    FixClick(400, 420) ; Confirm Modifier
-    Sleep(500)
-}
-
-ChangeSpeed() {
-    if (ModeDropdown.Text = "Story") {
-        if (StoryActDropdown.Text = "Infinity") {
-            loop 3 {
-                FixClick(585, 550)
-                Sleep (500)
-            }
-        } else {
-            loop 2 {
-                FixClick(585, 550)
-                Sleep (500)
-            }
-        }
-    } else {
-        loop 2 {
-            FixClick(585, 550)
-            Sleep (500)
-        }
-    }
-}
-
 DetectMap() {
     AddToLog("Determining Movement Necessity on Map...")
     startTime := A_TickCount
@@ -1037,9 +779,19 @@ DetectMap() {
             return "no map found"
         }
 
+        if (ModeDropdown.Text = "Story") {
+            AddToLog("Map detected: " StoryDropdown.Text)
+            return StoryDropdown.Text
+        }
+
         if (ModeDropdown.Text = "Raid") {
             AddToLog("Map detected: " RaidDropdown.Text)
             return RaidDropdown.Text
+        }
+
+        if (ModeDropdown.Text = "Tower") {
+            AddToLog("Map detected: Leveling Tower")
+            return "Leveling Tower"
         }
 
         mapPatterns := Map(
@@ -1069,14 +821,8 @@ HandleMapMovement(MapName) {
     AddToLog("Executing Movement for: " MapName)
     
     switch MapName {
-        case "Large Village":
-            MoveForLargeVillage()
-    }
-}
 
-MoveForLargeVillage() {
-    Fixclick(586, 545, "Right")
-    Sleep (6000)
+    }
 }
 
 RestartStage(seamless := false) {
@@ -1106,43 +852,6 @@ RestartStage(seamless := false) {
     MonitorStage()
 }
 
-Reconnect() {   
-    ; Check for Disconnected Screen using FindText
-    if (ok := FindText(&X, &Y, 450, 410, 539, 427, 0, 0, Disconnect)) {
-        AddToLog("Lost Connection! Attempting To Reconnect To Private Server...")
-
-        psLink := FileExist("Settings\PrivateServer.txt") ? FileRead("Settings\PrivateServer.txt", "UTF-8") : ""
-
-        ; Reconnect to Ps
-        if FileExist("Settings\PrivateServer.txt") && (psLink := FileRead("Settings\PrivateServer.txt", "UTF-8")) {
-            AddToLog("Connecting to private server...")
-            Run(psLink)
-        } else {
-            Run("roblox://placeID=16347800591")
-        }
-
-        Sleep(5000)  
-
-        loop {
-            AddToLog("Reconnecting to Roblox...")
-            Sleep(15000)
-
-            if WinExist(rblxID) {
-            forceRobloxSize()
-            moveRobloxWindow()
-            Sleep(1000)
-            }
-            
-            if (ok := FindText(&X, &Y, 746, 514, 789, 530, 0, 0, AreaText)) {
-                AddToLog("Reconnected Successfully!")
-                return StartSelectedMode()
-            } else {
-                Reconnect() 
-            }
-        }
-    }
-}
-
 PlaceUnit(x, y, slot := 1) {
     SendInput(slot)
     Sleep 50
@@ -1150,8 +859,6 @@ PlaceUnit(x, y, slot := 1) {
     Sleep 50
     SendInput("q")
     Sleep 500
-    FixClick(x, y)
-    Sleep 50
     if UnitPlaced() {
         Sleep 15
         return true
@@ -1195,7 +902,7 @@ WaitForUpgradeText(timeout := 4500) {
 }
 
 UpgradeUnit(x, y) {
-    FixClick(x, y - 3)
+    FixClick(x, y + 3)
     SendInput ("{T}")
     SendInput ("{T}")
     SendInput ("{T}")
@@ -1236,10 +943,16 @@ StartedGame() {
 
 StartSelectedMode() {
     if (ModeDropdown.Text = "Story") {
-        StoryMode()
+        CustomMode()
+       ; StoryMode()
     }
     else if (ModeDropdown.Text = "Raid") {
-        RaidMode()
+        CustomMode()
+        ;RaidMode()
+    }
+    else if (ModeDropdown.Text = "Tower") {
+        CustomMode()
+        ;RaidMode()
     }
     else if (ModeDropdown.Text = "Custom") {
         CustomMode()
@@ -1282,228 +995,6 @@ CheckForVoteScreen() {
           return true
     }
     return false
-}
-
-GenerateCustomPoints() {
-    global savedCoords  ; Access the global saved coordinates
-    points := []
-
-    ; Directly use savedCoords without generating new points
-    for coord in savedCoords {
-        points.Push({x: coord.x, y: coord.y})
-    }
-
-    return points
-}
-
-GenerateRandomPoints() {
-    points := []
-    gridSize := 40  ; Minimum spacing between units
-    
-    ; Center point coordinates
-    centerX := 408
-    centerY := 320
-    
-    ; Define placement area boundaries (adjust these as needed)
-    minX := centerX - 180  ; Left boundary
-    maxX := centerX + 180  ; Right boundary
-    minY := centerY - 140  ; Top boundary
-    maxY := centerY + 140  ; Bottom boundary
-    
-    ; Generate 40 random points
-    Loop 40 {
-        ; Generate random coordinates
-        x := Random(minX, maxX)
-        y := Random(minY, maxY)
-        
-        ; Check if point is too close to existing points
-        tooClose := false
-        for existingPoint in points {
-            ; Calculate distance to existing point
-            distance := Sqrt((x - existingPoint.x)**2 + (y - existingPoint.y)**2)
-            if (distance < gridSize) {
-                tooClose := true
-                break
-            }
-        }
-        
-        ; If point is not too close to others, add it
-        if (!tooClose)
-            points.Push({x: x, y: y})
-    }
-    
-    ; Always add center point last (so it's used last)
-    points.Push({x: centerX, y: centerY})
-    
-    return points
-}
-
-GenerateGridPoints() {
-    points := []
-    gridSize := 40  ; Space between points
-    squaresPerSide := 7  ; How many points per row/column (odd number recommended)
-    
-    ; Center point coordinates
-    centerX := 408
-    centerY := 320
-    
-    ; Calculate starting position for top-left point of the grid
-    startX := centerX - ((squaresPerSide - 1) / 2 * gridSize)
-    startY := centerY - ((squaresPerSide - 1) / 2 * gridSize)
-    
-    ; Generate grid points row by row
-    Loop squaresPerSide {
-        currentRow := A_Index
-        y := startY + ((currentRow - 1) * gridSize)
-        
-        ; Generate each point in the current row
-        Loop squaresPerSide {
-            x := startX + ((A_Index - 1) * gridSize)
-            points.Push({x: x, y: y})
-        }
-    }
-    
-    return points
-}
-
-GenerateUpandDownPoints() {
-    points := []
-    gridSize := 40  ; Space between points
-    squaresPerSide := 7  ; How many points per row/column (odd number recommended)
-    
-    ; Center point coordinates
-    centerX := 408
-    centerY := 320
-    
-    ; Calculate starting position for top-left point of the grid
-    startX := centerX - ((squaresPerSide - 1) / 2 * gridSize)
-    startY := centerY - ((squaresPerSide - 1) / 2 * gridSize)
-    
-    ; Generate grid points column by column (left to right)
-    Loop squaresPerSide {
-        currentColumn := A_Index
-        x := startX + ((currentColumn - 1) * gridSize)
-        
-        ; Generate each point in the current column
-        Loop squaresPerSide {
-            y := startY + ((A_Index - 1) * gridSize)
-            points.Push({x: x, y: y})
-        }
-    }
-    
-    return points
-}
-
-; circle coordinates
-GenerateCirclePoints() {
-    points := []
-    
-    ; Define each circle's radius
-    radius1 := 45    ; First circle 
-    radius2 := 90    ; Second circle 
-    radius3 := 135   ; Third circle 
-    radius4 := 180   ; Fourth circle 
-    
-    ; Angles for 8 evenly spaced points (in degrees)
-    angles := [0, 45, 90, 135, 180, 225, 270, 315]
-    
-    ; First circle points
-    for angle in angles {
-        radians := angle * 3.14159 / 180
-        x := centerX + radius1 * Cos(radians)
-        y := centerY + radius1 * Sin(radians)
-        points.Push({ x: Round(x), y: Round(y) })
-    }
-    
-    ; second circle points
-    for angle in angles {
-        radians := angle * 3.14159 / 180
-        x := centerX + radius2 * Cos(radians)
-        y := centerY + radius2 * Sin(radians)
-        points.Push({ x: Round(x), y: Round(y) })
-    }
-    
-    ; third circle points
-    for angle in angles {
-        radians := angle * 3.14159 / 180
-        x := centerX + radius3 * Cos(radians)
-        y := centerY + radius3 * Sin(radians)
-        points.Push({ x: Round(x), y: Round(y) })
-    }
-    
-    ;  fourth circle points
-    for angle in angles {
-        radians := angle * 3.14159 / 180
-        x := centerX + radius4 * Cos(radians)
-        y := centerY + radius4 * Sin(radians)
-        points.Push({ x: Round(x), y: Round(y) })
-    }
-    
-    return points
-}
-
-; Spiral coordinates (restricted to a rectangle)
-GenerateSpiralPoints(rectX := 4, rectY := 123, rectWidth := 795, rectHeight := 433) {
-    points := []
-    
-    ; Calculate center of the rectangle
-    centerX := rectX + rectWidth // 2
-    centerY := rectY + rectHeight // 2
-    
-    ; Angle increment per step (in degrees)
-    angleStep := 30
-    ; Distance increment per step (tighter spacing)
-    radiusStep := 10
-    ; Initial radius
-    radius := 20
-    
-    ; Maximum radius allowed (smallest distance from center to edge)
-    maxRadiusX := (rectWidth // 2) - 1
-    maxRadiusY := (rectHeight // 2) - 1
-    maxRadius := Min(maxRadiusX, maxRadiusY)
-
-    ; Generate spiral points until reaching max boundary
-    Loop {
-        ; Stop if the radius exceeds the max boundary
-        if (radius > maxRadius)
-            break
-        
-        angle := A_Index * angleStep
-        radians := angle * 3.14159 / 180
-        x := centerX + radius * Cos(radians)
-        y := centerY + radius * Sin(radians)
-        
-        ; Check if point is inside the rectangle
-        if (x < rectX || x > rectX + rectWidth || y < rectY || y > rectY + rectHeight)
-            break ; Stop if a point goes out of bounds
-        
-        points.Push({ x: Round(x), y: Round(y) })
-        
-        ; Increase radius for next point
-        radius += radiusStep
-    }
-    
-    return points
-}
-
-CheckEndAndRoute() {
-    if (ok := FindText(&X, &Y, 137, 422, 632, 460, 0, 0, ReturnToLobby)) {
-        AddToLog("Found end screen")
-        return MonitorEndScreen()
-    }
-    return false
-}
-
-ClickUntilGone(x, y, searchX1, searchY1, searchX2, searchY2, textToFind, offsetX:=0, offsetY:=0, textToFind2:="") {
-    while (ok := FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind) || 
-           textToFind2 && FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind2)) {
-        if (offsetX != 0 || offsetY != 0) {
-            FixClick(X + offsetX, Y + offsetY)  
-        } else {
-            FixClick(x, y) 
-        }
-        Sleep(1000)
-    }
 }
 
 PlacementSpeed() {

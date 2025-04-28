@@ -1,6 +1,6 @@
 Mode=
 
-
+[EnabledUnits]
 Enabled1=1
 Enabled2=1
 Enabled3=1
@@ -8,12 +8,15 @@ Enabled4=1
 Enabled5=1
 Enabled6=1
 
+[Placements]
 Placement1=1
 Placement2=1
 Placement3=1
 Placement4=1
 Placement5=1
 Placement6=1
+
+[UpgradePriority]
 Priority1=1
 Priority2=2
 Priority3=3
@@ -21,6 +24,7 @@ Priority4=4
 Priority5=5
 Priority6=6
 
+[Place&Upgrade]
 UpgradeEnabled1=0
 UpgradeEnabled2=0
 UpgradeEnabled3=0
@@ -31,24 +35,33 @@ UpgradeEnabled6=0
 [PlacementLogic]
 Logic=1
 
-
 [PlaceSpeed]
 Speed=3
 
+[PlacementProfile]
+Profile=1
 
 [ReturnToLobby]
 Lobby=0
 
-
-[UINavigation]
-Navigate=0
-
 [PriorityUpgrade]
 Upgrade=1
-
 
 [Modulation]
 Value=1
 
 [SavedCoordinates]
+[Preset 1]
+NoCoordinatesSaved
+[Preset 2]
+NoCoordinatesSaved
+[Preset 3]
+NoCoordinatesSaved
+[Preset 4]
+NoCoordinatesSaved
+[Preset 5]
+NoCoordinatesSaved
+[Preset 6]
+NoCoordinatesSaved
+[Preset 7]
 NoCoordinatesSaved

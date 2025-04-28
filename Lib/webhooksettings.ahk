@@ -163,12 +163,15 @@ SendWebhookWithTime(isWin, stageLength) {
     macroLength := FormatStageTime(A_TickCount - macroStartTime)
     
     ; Build session data
-    sessionData := "⌛ Macro Runtime: " macroLength "`n"
-    . "⏱️ Stage Length: " stageLength "`n"
-    . "🔄 Current Streak: " (currentStreak > 0 ? currentStreak " Win Streak" : Abs(currentStreak) " Loss Streak") "`n"
-    . ":white_check_mark: Successful Runs: " Wins "`n"
-    . "❌ Failed Runs: " loss "`n"
-    . ":bar_chart: Total Runs: " (loss+Wins)
+    sessionData := "⏳ Macro Runtime: " macroLength "`n"
+    . "🕒 Stage Duration: " stageLength "`n"
+    . "🔥 Current Streak: " (currentStreak > 0 ? currentStreak " Win Streak" : Abs(currentStreak) " Loss Streak") "`n"
+    . "🗺️ Map: N/A`n"
+    . "🎮 Mode: " ModeDropdown.Text "`n"
+    . "✅ Wins: " Wins "`n"
+    . "❌ Fails: " loss "`n"
+    . "📊 Total Runs: " (loss + Wins) "`n"
+    . "🏆 Win Rate: " Format("{:.1f}%", (Wins / (Wins + loss)) * 100) "`n"
     isWin ? 0x0AB02D : 0xB00A0A,
     isWin ? "win" : "lose"
     
@@ -179,30 +182,6 @@ SendWebhookWithTime(isWin, stageLength) {
         isWin ? 0x0AB02D : 0xB00A0A,
         isWin ? "win" : "lose"
     )
-}
-
-SendBanner() {
-    global DiscordUserID, StartTime
-
-    ; Calculate how long it took to find the unit
-    ElapsedTimeMs := A_TickCount - StartTime
-    ElapsedTimeSec := Floor(ElapsedTimeMs / 1000)
-    ElapsedHours := Floor(ElapsedTimeSec / 3600)
-    ElapsedMinutes := Floor(Mod(ElapsedTimeSec, 3600) / 60)
-    Runtime := Format("{:02}h {:02}m", ElapsedHours, ElapsedMinutes)
-
-    ; Build banner alert info
-    bannerInfo := "🎉 **Banner Unit Found!** 🎉`n"
-    . ":stopwatch: Time Taken: " Runtime
-
-    ; If you have BannerUnitBox from settings, show which unit was found
-    if FileExist("Settings\BannerUnit.txt") {
-        bannerUnitName := FileRead("Settings\BannerUnit.txt", "UTF-8")
-        if (bannerUnitName != "")
-            bannerInfo .= "`n:partying_face: Found Unit: " bannerUnitName " :partying_face:"
-    }
-
-    WebhookScreenshot("Special Unit Found!", bannerInfo, 0xFFD700,) 
 }
 
 CropImage(pBitmap, x, y, width, height) {
@@ -348,16 +327,6 @@ WebhookLog() {
     } 
 }
 
-BannerFound() {
-    global WebhookURL := FileRead(WebhookURLFile, "UTF-8")
-    global DiscordUserID := FileRead(DiscordUserIDFile, "UTF-8")
-
-    if (webhookURL ~= 'i)https?:\/\/discord\.com\/api\/webhooks\/(\d{18,19})\/[\w-]{68}') {
-        global webhook := WebHookBuilder(WebhookURL)
-        SendBanner()
-    }
-}
-
 SaveWebhookBtnClick() {
     AddToLog("Attempting to save webhook settings...")
     SaveWebhookSettings()
@@ -456,7 +425,7 @@ WebhookScreenshot(title, description, color := 0x0dffff, status := "") {
         return
     }
 
-    pCroppedBitmap := CropImage(pBitmap, 0, 0, 1366, 633)
+    pCroppedBitmap := CropImage(pBitmap, 0, 0, 1366, 700)
     if !pCroppedBitmap {
         MsgBox("Failed to crop the bitmap")
         Gdip_DisposeImage(pBitmap)
@@ -497,4 +466,10 @@ SendWebhookRequest(webhook, params, maxRetries := 3) {
         AddToLog("Unable to send webhook - continuing without sending")
         return false
     }
+}
+
+TestWebhook() {
+    global Wins
+    wins++
+    SendWebhookWithTime(true, 1)
 }

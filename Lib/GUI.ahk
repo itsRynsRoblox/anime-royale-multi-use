@@ -7,7 +7,7 @@
 ;Update Checker
 global repoOwner := "itsRynsRoblox"
 global repoName := "anime-royale-multi-use"
-global currentVersion := "1.2"
+global currentVersion := "1.3.1"
 ; Basic Application Info
 global aaTitle := "Ryn's Anime Royale Macro "
 global version := "v" . currentVersion
@@ -88,6 +88,7 @@ uiBorders.Push(aaMainUI.Add("Text", "x803 y443 w560 h1 +Background" uiTheme[3]))
 uiBorders.Push(aaMainUI.Add("Text", "x803 y527 w560 h1 +Background" uiTheme[3])) ;Process bottom
 uiBorders.Push(aaMainUI.Add("Text", "x802 y30 w1 h667 +Background" uiTheme[3])) ;Roblox Right
 uiBorders.Push(aaMainUI.Add("Text", "x0 y697 w1364 h1 +Background" uiTheme[3], "")) ;Roblox second bottom
+uiBorders.Push(aaMainUI.Add("Text", "x0 y631 w803 h1 +Background" uiTheme[3], "")) ;Roblox second bottom
 
 global robloxHolder := aaMainUI.Add("Text", "x3 y33 w797 h597 +Background" uiTheme[5], "") ;Roblox window box
 global exitButton := aaMainUI.Add("Picture", "x1330 y1 w32 h32 +BackgroundTrans", Exitbutton) ;Exit image
@@ -130,13 +131,13 @@ ShowSettingsGUI(*) {
     SettingsGUI.BackColor := uiTheme[2]
     
     ; Window border
-    SettingsGUI.Add("Text", "x0 y0 w1 h600 +Background" uiTheme[3])     ; Left
-    SettingsGUI.Add("Text", "x599 y0 w1 h600 +Background" uiTheme[3])   ; Right
-    SettingsGUI.Add("Text", "x0 y399 w600 h1 +Background" uiTheme[3])   ; Bottom
+    SettingsGUI.Add("Text", "x0 y0 w1 h300 +Background" uiTheme[3])     ; Left
+    SettingsGUI.Add("Text", "x599 y0 w1 h300 +Background" uiTheme[3])   ; Right
+    SettingsGUI.Add("Text", "x0 y281 w600 h1 +Background" uiTheme[3])   ; Bottom
     
     ; Right side sections
     SettingsGUI.SetFont("s10", "Verdana")
-    SettingsGUI.Add("GroupBox", "x310 y5 w280 h160 c" uiTheme[1], "Discord Webhook")  ; Box
+    SettingsGUI.Add("GroupBox", "x310 y5 w280 h160 Center c" uiTheme[1], "Discord Webhook")  ; Box
     
     SettingsGUI.SetFont("s9", "Verdana")
     SettingsGUI.Add("Text", "x320 y30 c" uiTheme[1], "Webhook URL")     ; Webhook Text
@@ -146,7 +147,7 @@ ShowSettingsGUI(*) {
     global SendActivityLogsBox := SettingsGUI.Add("Checkbox", "x320 y135 c" uiTheme[1], "Send Process")  ; Enable Activity
 
     ; HotKeys
-    SettingsGUI.Add("GroupBox", "x10 y90 w160 h160 c" uiTheme[1], "Keybinds")
+    SettingsGUI.Add("GroupBox", "x10 y90 w160 h160 Center c" uiTheme[1], "Keybinds")
     SettingsGUI.Add("Text", "x20 y110 c" uiTheme[1], "Position Roblox:")
     global F1Box := SettingsGUI.Add("Edit", "x125 y110 w30 h20 c" uiTheme[6], F1Key)
     SettingsGUI.Add("Text", "x20 y140 c" uiTheme[1], "Start Macro:")
@@ -157,11 +158,11 @@ ShowSettingsGUI(*) {
     global F4Box := SettingsGUI.Add("Edit", "x110 y200 w30 h20 c" uiTheme[6], F4Key)
 
     ; Private Server section
-    SettingsGUI.Add("GroupBox", "x310 y280 w280 h100 c" uiTheme[1], "PS Link")  ; Box
-    SettingsGUI.Add("Text", "x320 y300 c" uiTheme[1], "Private Server Link (optional)")  ; Ps text
-    global PsLinkBox := SettingsGUI.Add("Edit", "x320 y320 w260 h20 c" uiTheme[6])  ;  ecit box
+    SettingsGUI.Add("GroupBox", "x310 y175 w280 h100 Center c" uiTheme[1], "Private Server")  ; Box
+    SettingsGUI.Add("Text", "x320 y195 c" uiTheme[1], "Private Server Link (optional)")  ; Ps text
+    global PsLinkBox := SettingsGUI.Add("Edit", "x320 y215 w260 h20 c" uiTheme[6])  ;  ecit box
 
-    SettingsGUI.Add("GroupBox", "x10 y10 w115 h70 c" uiTheme[1], "UI Navigation")
+    SettingsGUI.Add("GroupBox", "x10 y10 w115 h70 Center c" uiTheme[1], "UI Navigation")
     SettingsGUI.Add("Text", "x20 y30 c" uiTheme[1], "Navigation Key")
     global UINavBox := SettingsGUI.Add("Edit", "x20 y50 w20 h20 c" uiTheme[6], "\")
 
@@ -172,7 +173,7 @@ ShowSettingsGUI(*) {
     keybindSaveBtn := SettingsGUI.Add("Button", "x20 y220 w50 h20", "Save")
     keybindSaveBtn.OnEvent("Click", SaveKeybindSettings)
 
-    PsSaveBtn := SettingsGUI.Add("Button", "x460 y345 w120 h25", "Save PsLink")
+    PsSaveBtn := SettingsGUI.Add("Button", "x460 y240 w120 h25", "Save PsLink")
     PsSaveBtn.OnEvent("Click", (*) => SavePsSettings())
 
     UINavSaveBtn := SettingsGUI.Add("Button", "x50 y50 w60 h20", "Save")
@@ -191,7 +192,7 @@ ShowSettingsGUI(*) {
         UINavBox.Value := FileRead("Settings\UINavigation.txt", "UTF-8")
 
     ; Show the settings window
-    SettingsGUI.Show("w600 h400")
+    SettingsGUI.Show("w600 h285")
     Webhookdiverter.Focus()
 }
 
@@ -213,10 +214,12 @@ OpenGuide(*) {
     GuideGUI.Show("w800")
 }
 
-aaMainUI.SetFont("s12 Bold c" uiTheme[1])
-global settingsBtn := aaMainUI.Add("Button", "x1160 y0 w90 h30", "Settings")
+aaMainUI.SetFont("s9 Bold c" uiTheme[1])
+
+global settingsBtn := aaMainUI.Add("Button", "x1160 y5 w90 h20", "Settings")
 settingsBtn.OnEvent("Click", ShowSettingsGUI)
-global guideBtn := aaMainUI.Add("Button", "x1060 y0 w90 h30", "Guide")
+
+global guideBtn := aaMainUI.Add("Button", "x1060 y5 w90 h20", "Guide")
 guideBtn.OnEvent("Click", OpenGuide)
 
 placementSaveBtn := aaMainUI.Add("Button", "x807 y471 w80 h20", "Save")
@@ -225,16 +228,20 @@ aaMainUI.SetFont("s9")
 global NextLevelBox := aaMainUI.Add("Checkbox", "x900 y451 cffffff Checked", "Next Level")
 global ReturnLobbyBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Return To Lobby")
 global HardModeBox := aaMainUI.Add("Checkbox", "x1040 y476 cffffff Checked", "Hard Mode")
-global UINavToggle := aaMainUI.Add("CheckBox", "x900 y476 cffffff Checked Hidden", "UI Navigation")
 global PriorityUpgrade := aaMainUI.Add("CheckBox", "x900 y476 cffffff", "Priority Upgrade")
-PlacementPatternText := aaMainUI.Add("Text", "x1032 y390 w115 h20", "Placement Type")
-global PlacementPatternDropdown := aaMainUI.Add("DropDownList", "x1035 y410 w100 h180 Choose2 +Center", ["Circle", "Custom", "Grid", "Random"])
-PlaceSpeedText := aaMainUI.Add("Text", "x1193 y390 w115 h20", "Placement Speed")
-global PlaceSpeed := aaMainUI.Add("DropDownList", "x1205 y410 w100 h180 Choose1 +Center", ["Super Fast (1s)", "Fast (1.5s)", "Default (2s)", "Slow (2.5s)", "Very Slow (3s)", "Toaster (4s)"])
-;PlaceSpeed.OnEvent('Change', (*) => changePlacementSpeed())
 
-modulationText := aaMainUI.Add("Text", "x857 y390 w130 h20", "Modulation Settings")
-modulationEdit := aaMainUI.Add("Edit", "x895 y410 w60 h20 +Center c000000", "1.00")  ; Default value
+PlacementPresetText := aaMainUI.Add("Text", "x837 y390 w130 h20", "Placement Profile")
+global PlacementProfiles := aaMainUI.Add("DropDownList", "x845 y410 w100 h180 Choose1 +Center", ["Story", "Raid", "Challenge", "Event", "Custom #1", "Custom #2", "Custom #3"])
+PlacementProfiles.OnEvent("Change", SendPlacements)
+
+PlacementPatternText := aaMainUI.Add("Text", "x982 y390 w115 h20", "Placement Type")
+global PlacementPatternDropdown := aaMainUI.Add("DropDownList", "x985 y410 w100 h180 Choose2 +Center", ["Circle", "Custom", "Grid", "Random"])
+
+PlaceSpeedText := aaMainUI.Add("Text", "x1120 y390 w115 h20", "Placement Speed")
+global PlaceSpeed := aaMainUI.Add("DropDownList", "x1125 y410 w100 h180 Choose1 +Center", ["Super Fast (1s)", "Fast (1.5s)", "Default (2s)", "Slow (2.5s)", "Very Slow (3s)", "Toaster (4s)"])
+
+modulationText := aaMainUI.Add("Text", "x1268 y390 w80 h20", "Modulation")
+modulationEdit := aaMainUI.Add("Edit", "x1275 y410 w60 h20 +Center c000000", "1.00")  ; Default value
 modulationUpDown := aaMainUI.Add("UpDown", "Range1-50")  ; Set range
 
 ; Ensure input stays within 0.75 - 50 range
@@ -250,13 +257,18 @@ ModulationValidate(*) {
 
 placementSaveText := aaMainUI.Add("Text", "x807 y451 w80 h20", "Save Config")
 
-customPlacementText := aaMainUI.Add("Text", "x200 y642 w120 h20 +Left", "Set Placements")
-customPlacementButton := aaMainUI.Add("Button", "x210 y662 w80 h20", "Set")
+; Custom Placement Settings
+global CustomSettings := aaMainUI.Add("GroupBox", "x410 y634 w390 h60 +Center c" uiTheme[1], "Custom Placement Settings")
+
+customPlacementButton := aaMainUI.Add("Button", "x430 y667 w80 h20", "Set")
 customPlacementButton.OnEvent("Click", (*) => StartCoordCapture())
 
-customPlacementClearText := aaMainUI.Add("Text", "x345 y642 w120 h20 +Left", "Clear Placements")
-customPlacementClearButton := aaMainUI.Add("Button", "x360 y662 w80 h20", "Clear")
-customPlacementClearButton.OnEvent("Click", (*) => DeleteSavedCoords())
+customPlacementClearButton := aaMainUI.Add("Button", "x565 y667 w80 h20", "Clear")
+customPlacementClearButton.OnEvent("Click", (*) => DeleteCoordsForPreset(PlacementProfiles.Value))
+
+fixCameraText := aaMainUI.Add("Text", "x725 y647 w60 h20 +Left +BackgroundTrans", "Camera")
+fixCameraButton := aaMainUI.Add("Button", "x710 y667 w80 h20", "Fix")
+fixCameraButton.OnEvent("Click", (*) => BasicSetup())
 
 Hotkeytext := aaMainUI.Add("Text", "x807 y35 w530 h30", "To change keybinds click top right settings, Below are default hotkey settings ")
 Hotkeytext2 := aaMainUI.Add("Text", "x807 y50 w530 h30", "F1:Reposition roblox window|F2:Start Macro|F3:Stop Macro|F4:Pause Macro")
@@ -270,7 +282,7 @@ DiscordButton.OnEvent("Click", (*) => OpenDiscord())
 ;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT
 global modeSelectionGroup := aaMainUI.Add("GroupBox", "x808 y38 w500 h45 Background" uiTheme[2], "Mode Select")
 aaMainUI.SetFont("s10 c" uiTheme[6])
-global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Raid", "Custom"])
+global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Raid", "Tower", "Custom"])
 global StoryDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Ghoul City", "Sharkman Island", "Hidden Village", "Fairy Town", "Cursed Town", "Corp City", "Soul World", "Strongest City"])
 global StoryActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1", "Act 2", "Act 3", "Act 4", "Act 5", "Act 6", "Infinity"])
 global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Hollow Desert", "Red Palace", "Sorcery Academy", "Lookout", "Slayers District", "Underground Tomb", "Boru's Room", "Candy Park"])
@@ -500,7 +512,25 @@ checkSizeTimer() {
 }
 
 StartCoordCapture() {
+    global savedCoords
     global waitingForClick
+    global placement1, placement2, placement3, placement4, placement5, placement6
+
+    presetIndex := PlacementProfiles.Value
+
+    ; Retrieve values from dropdowns
+    totalEnabled := placement1.Value + placement2.Value + placement3.Value + placement4.Value + placement5.Value + placement6.Value
+
+    ; Stop coordinate capture if the max total is reached
+    if savedCoords[presetIndex].Length >= totalEnabled {
+        AddToLog("Max total coordinates reached. Stopping coordinate capture.")
+        return
+    }
+
+    if (WinExist(rblxID)) {
+        WinActivate(rblxID)
+    }
+
     waitingForClick := true
     AddToLog("Press LShift to stop coordinate capture")
     SetTimer UpdateTooltip, 50  ; Update tooltip position every 50ms
@@ -531,27 +561,56 @@ UpdateTooltip() {
     global waitingForClick, savedCoords
     global placement1, placement2, placement3, placement4, placement5, placement6
 
+    if !scriptInitialized
+        return
+
     if waitingForClick {
-        ; Wait for the button press and get the position when the mouse button is clicked
-        MouseGetPos &x, &y
-        SetTimer UpdateTooltip, 0  ; Stop updating tooltip immediately
+        presetIndex := PlacementProfiles.Value
 
-        if !IsSet(savedCoords)  ; Ensure savedCoords is initialized
-            savedCoords := []
-        savedCoords.Push({x: x, y: y - 25})  ; Store as an object
+        if (presetIndex < 1)
+        {
+            if (debugMessages) {
+                AddToLog("⚠️ Invalid preset index: " presetIndex)
+            }
+            return
+        }
 
-        ; Retrieve values from dropdowns
         totalEnabled := placement1.Value + placement2.Value + placement3.Value + placement4.Value + placement5.Value + placement6.Value
 
-        ; Display tooltip with coordinate count and enabled count
-        ToolTip("Coords Set: " savedCoords.Length " / Total Enabled: " totalEnabled, x + 10, y + 10)
-        AddToLog("📌 Saved Coordinates → X: " x ", Y: " y " | Set: " savedCoords.Length " / Total Enabled: " totalEnabled)
+        MouseGetPos(&x, &y)
+        SetTimer(UpdateTooltip, 0)
 
-        ; Ensure tooltip disappears properly
-        SetTimer ClearToolTip, -1200
+        ; ✅ Get or initialize the preset slot safely
+        coords := GetOrInitPresetCoords(presetIndex)
+        coords.Push({x: x, y: y})
+        savedCoords[presetIndex] := coords
+
+        ToolTip("Coords Set: " coords.Length " / Total Enabled: " totalEnabled, x + 10, y + 10)
+        AddToLog("📌 [Preset: " PlacementProfiles.Text "] Saved → X: " x ", Y: " y " | Set: " coords.Length " / Enabled: " totalEnabled)
+        SetTimer(ClearToolTip, -1200)
+
+        if coords.Length >= totalEnabled {
+            AddToLog("✅ [Preset " PlacementProfiles.Text "] All coordinates set, Stopping capture.")
+            waitingForClick := false
+        }
     }
 }
 
+
+GetOrInitPresetCoords(index) {
+    global savedCoords
+    if !IsObject(savedCoords)
+        savedCoords := []
+
+    ; Extend the array up to the index if needed
+    while (savedCoords.Length < index)
+        savedCoords.Push([])
+
+    if !IsObject(savedCoords[index])
+        savedCoords[index] := []
+
+    return savedCoords[index]
+}
 
 ClearToolTip() {
     ToolTip()  ; Properly clear tooltip
@@ -559,13 +618,30 @@ ClearToolTip() {
     ToolTip()  ; Redundant clear to catch edge cases
 }
 
-DeleteSavedCoords() {
+DeleteCoordsForPreset(index) {
     global savedCoords
 
-    if (IsSet(savedCoords) && savedCoords.Length > 0) {
-        savedCoords := []  ; Clear the saved coordinates list
-        AddToLog("🗑️ All saved coordinates have been cleared.")
+    ; Ensure savedCoords is initialized as an object
+    if !IsObject(savedCoords)
+        savedCoords := []
+
+    ; Extend the array up to the index if needed
+    while (savedCoords.Length < index)
+        savedCoords.Push([])
+
+    ; Check if the preset has coordinates (i.e., non-empty)
+    if (savedCoords[index].Length > 0) {
+        savedCoords[index] := []  ; Clear the coordinates for the specified preset
+        AddToLog("🗑️ Cleared coordinates for Preset: " PlacementProfiles.Text)
     } else {
-        AddToLog("⚠️ No saved coordinates to clear.")
+        AddToLog("⚠️ No coordinates to clear for Preset: " PlacementProfiles.Text)
     }
+}
+
+SendPlacements(*) {
+    global savedCoords
+
+    presetIndex := PlacementProfiles.Value
+
+    AddToLog("Preset: " PlacementProfiles.Text " has " savedCoords[presetIndex].Length " saved placements")
 }
