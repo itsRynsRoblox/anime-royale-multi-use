@@ -20,11 +20,6 @@ if (!FileExist("Settings")) {
 }
 
 win_messages := [
-            "clean victory secured 🏆",
-            "macro going crazy rn fr 🔥",
-            "stacking those Ws 📈",
-            "another dub in the books 🎯",
-            "back to back wins incoming 💫",
             "(˵ •̀ ᴗ – ˵ ) ✧",
             "♡‧₊˚✧ ૮ ˶ᵔ ᵕ ᵔ˶ ა ✧˚₊‧♡",
             "/)_/)`n(,,>.<)`n/ >❤️",
@@ -35,73 +30,12 @@ win_messages := [
 
         ],
         lose_messages := [
-            "next one is a win fr 💯",
-            "just warming up 🔥",
-            "next run is the one 🎮",
-            "almost had it that time 🎯",
-            "getting better each run 📈",
             "(╯°□°)╯︵ ┻━┻",
             "(ಠ益ಠ)",
             "(╥﹏╥)",
             "(⇀‸↼‶)",
             "(◣ _ ◢)",
             "<(ꐦㅍ _ㅍ)>"
-        ],
-        ; Milestone messages (every 10th attempt)
-        milestone_win_messages := [
-        "milestone #{count} win secured! 🏆",
-        "#{count} wins and counting! 📈",
-        "#{count} wins in the books! 🔥",
-        "reached #{count} wins! ⭐",
-        "#{count} wins and still going strong! 💫"
-        ],
-        milestone_lose_messages := [
-        "milestone #{count} loss... just bad luck, next time! 🍀",
-        "#{count} losses, but we'll get 'em next time! 🤞",
-        "reached #{count} losses... just one of those days! 🤷‍♂️",
-        "hit #{count} losses, but we’ll turn it around soon! 🙌",
-        "milestone #{count} loss, but no worries—next game is ours! 😎"
-        ]
-        ; Streak messages
-        winstreak_messages := [
-            "#{streak} win streak lets gooo 🏆",
-            "on fire with #{streak} wins 🔥",
-            "unstoppable #{streak} win streak 💫",
-            "#{streak} wins in a row sheesh 📈",
-            "#{streak} win streak going crazy 🌟"
-            "(˵ •̀ ᴗ – ˵ ) ✧",
-            "♡‧₊˚✧ ૮ ˶ᵔ ᵕ ᵔ˶ ა ✧˚₊‧♡",
-            "/)_/)`n(,,>.<)`n/ >❤️",
-            "૮꒰ ˶• ༝ •˶꒱ა ♡",
-            "✧｡٩(ˊᗜˋ )و✧*｡",
-            "( •̯́ ₃ •̯̀)"
-        ],
-        losestreak_messages := [
-            "#{streak} runs of experience gained 📚",
-            "#{streak} tries closer to victory 🎯",
-            "learning from #{streak} attempts 💪",
-            "#{streak} runs of practice secured 📈",
-            "comeback loading after #{streak} 🔄"
-            "(╯°□°)╯︵ ┻━┻",
-            "(ಠ益ಠ)",
-            "(╥﹏╥)",
-            "(⇀‸↼‶)",
-            "(◣ _ ◢)",
-            "<(ꐦㅍ _ㅍ)>"
-        ],
-        ; Time-based messages
-        long_win_messages := [
-        "took #{time} but macro finally popped off 💪",
-        "#{time} grind actually paid off wtf 😳",
-        "pc earned its rest after #{time} 😴",
-        "#{time} of pure skill 🔥",
-        ],
-        long_lose_messages := [
-        "#{time} of valuable experience 📚",
-        "#{time} of strategy learning 🧠",
-        "#{time} closer to victory 🎯",
-        "#{time} of practice makes perfect ⭐",
-        "#{time} getting stronger 💪"
         ]
 
 CalculateElapsedTime(startTime) {
@@ -138,15 +72,15 @@ UpdateStreak(isWin) {
 }
 
 SendWebhookWithTime(isWin, stageLength) {
-    global currentStreak, Wins, loss, WebhookURL, webhook, macroStartTime
+    global currentStreak, Wins, loss, WebhookURL, webhook, macroStartTime, currentMap
     
     ; Update streak
     UpdateStreak(isWin)
 
     ; Check if webhook file exists first
     if (!FileExist(WebhookURLFile)) {
-    AddToLog("No webhook configured - skipping webhook")
-    return  ; Just return if no webhook file
+        AddToLog("No webhook configured - skipping webhook")
+        return  ; Just return if no webhook file
     }
 
     ; Read webhook URL from file
@@ -166,7 +100,7 @@ SendWebhookWithTime(isWin, stageLength) {
     sessionData := "⏳ Macro Runtime: " macroLength "`n"
     . "🕒 Stage Duration: " stageLength "`n"
     . "🔥 Current Streak: " (currentStreak > 0 ? currentStreak " Win Streak" : Abs(currentStreak) " Loss Streak") "`n"
-    . "🗺️ Map: N/A`n"
+    . "🗺️ Map: " currentMap "`n"
     . "🎮 Mode: " ModeDropdown.Text "`n"
     . "✅ Wins: " Wins "`n"
     . "❌ Fails: " loss "`n"
@@ -340,13 +274,7 @@ WebhookScreenshot(title, description, color := 0x0dffff, status := "") {
 
     footerMessages := Map(
         "win", win_messages,
-        "lose", lose_messages,
-        "milestone_win", milestone_win_messages,
-        "milestone_lose", milestone_lose_messages,
-        "winstreak", winstreak_messages,
-        "losestreak", losestreak_messages,
-        "long_win", long_win_messages,
-        "long_lose", long_lose_messages
+        "lose", lose_messages
     )
 
     global webhook := WebHookBuilder(WebhookURL)
@@ -379,27 +307,11 @@ WebhookScreenshot(title, description, color := 0x0dffff, status := "") {
     }
 
     if (status = "win") {
-        ; Check for milestone (every 5th win)
-        if (Mod(wins, 5) = 0) {
-            messages := footerMessages["milestone_win"]
-            footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("count", wins))
-        }
-        ; Check for win streak
-        else if (currentStreak >= 3) {
-            messages := footerMessages["winstreak"]
-            footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("streak", currentStreak))
-        }
+        messages := footerMessages["win"]
+        footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("count", wins))
     } else {
-        ; Check for milestone loss
-        if (Mod(loss, 5) = 0) {
-            messages := footerMessages["milestone_lose"]
-            footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("count", loss))
-        }
-        ; Check for loss streak
-        else if (currentStreak <= -3) {
-            messages := footerMessages["losestreak"]
-            footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("streak", Abs(currentStreak)))
-        }
+        messages := footerMessages["loss"]
+        footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("count", loss))
     }
 
     ; If no special message was set, use a random regular message

@@ -7,7 +7,7 @@
 ;Update Checker
 global repoOwner := "itsRynsRoblox"
 global repoName := "anime-royale-multi-use"
-global currentVersion := "1.3.1"
+global currentVersion := "1.3.2"
 ; Basic Application Info
 global aaTitle := "Ryn's Anime Royale Macro "
 global version := "v" . currentVersion
@@ -226,7 +226,7 @@ placementSaveBtn := aaMainUI.Add("Button", "x807 y471 w80 h20", "Save")
 placementSaveBtn.OnEvent("Click", SaveSettings)
 aaMainUI.SetFont("s9")
 global NextLevelBox := aaMainUI.Add("Checkbox", "x900 y451 cffffff Checked", "Next Level")
-global ReturnLobbyBox := aaMainUI.Add("Checkbox", "x1015 y451 cffffff Checked", "Return To Lobby")
+global ReturnLobbyBox := aaMainUI.Add("Checkbox", "x900 y451 cffffff Checked", "Return To Lobby")
 global HardModeBox := aaMainUI.Add("Checkbox", "x1040 y476 cffffff Checked", "Hard Mode")
 global PriorityUpgrade := aaMainUI.Add("CheckBox", "x900 y476 cffffff", "Priority Upgrade")
 
@@ -282,16 +282,18 @@ DiscordButton.OnEvent("Click", (*) => OpenDiscord())
 ;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT
 global modeSelectionGroup := aaMainUI.Add("GroupBox", "x808 y38 w500 h45 Background" uiTheme[2], "Mode Select")
 aaMainUI.SetFont("s10 c" uiTheme[6])
-global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Raid", "Tower", "Custom"])
+global ModeDropdown := aaMainUI.Add("DropDownList", "x818 y53 w140 h180 Choose0 +Center", ["Story", "Legend", "Raid", "Tower", "Custom"])
 global StoryDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Ghoul City", "Sharkman Island", "Hidden Village", "Fairy Town", "Cursed Town", "Corp City", "Soul World", "Strongest City"])
 global StoryActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1", "Act 2", "Act 3", "Act 4", "Act 5", "Act 6", "Infinity"])
-global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Hollow Desert", "Red Palace", "Sorcery Academy", "Lookout", "Slayers District", "Underground Tomb", "Boru's Room", "Candy Park"])
+global LegendDropDown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Hell", "Shadow City"])
+global RaidDropdown := aaMainUI.Add("DropDownList", "x968 y53 w150 h180 Choose0 +Center", ["Green Planet", "Hollow Desert", "Red Palace", "Sorcery Academy", "Lookout", "Slayers District", "Underground Tomb", "Boru's Room", "Candy Park", "Aura Room"])
 global RaidActDropdown := aaMainUI.Add("DropDownList", "x1128 y53 w80 h180 Choose0 +Center", ["Act 1"])
 global ConfirmButton := aaMainUI.Add("Button", "x1218 y53 w80 h25", "Confirm")
 
 StoryDropdown.Visible := false
 StoryActDropdown.Visible := false
 RaidDropdown.Visible := false
+LegendDropDown.Visible := false
 RaidActDropdown.Visible := false
 ReturnLobbyBox.Visible := false
 NextLevelBox.Visible := false

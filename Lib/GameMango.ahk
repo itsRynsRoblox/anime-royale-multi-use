@@ -2,6 +2,7 @@
 #Include Image.ahk
 global macroStartTime := A_TickCount
 global stageStartTime := A_TickCount
+global currentMap := ""
 
 LoadKeybindSettings()  ; Load saved keybinds
 ;CheckForUpdates()
@@ -15,7 +16,7 @@ F5:: {
 }
 
 F6:: {
-
+    CopyMouseCoords()
 }
 
 F7::{
@@ -43,7 +44,7 @@ TogglePause(*) {
 
 CheckForReturnToLobby() {
     ; Check for return to lobby text
-    if (ok := FindText(&X, &Y, 151, 433, 655, 469, 0, 0, ReturnToLobbyText)) {
+    if (ok := FindText(&X, &Y, 151, 433, 655, 469, 0.10, 1, ReturnToLobbyText)) {
         return true
     }
     return false
@@ -143,16 +144,19 @@ PlacingUnits(untilSuccessful := true) {
                             break ; Move to the next placement spot
                         }
                         AttemptUpgrade()
-                        if CheckForReturnToLobby()
+
+                        if (CheckGameOver()) {
                             return MonitorStage()
+                        }
 
                         Reconnect()
                         Sleep(500) ; Prevents spamming clicks too fast
                     }
                 }
 
-                if CheckForReturnToLobby()
+                if (CheckGameOver()) {
                     return MonitorStage()
+                }
             }
         }
     }
@@ -225,7 +229,7 @@ AttemptUpgrade() {
                         continue
                     }
 
-                    if CheckForReturnToLobby() {
+                    if (CheckGameOver()) {
                         AddToLog("Stage ended during upgrades, proceeding to results")
                         successfulCoordinates := []
                         maxedCoordinates := []
@@ -270,7 +274,7 @@ AttemptUpgrade() {
                 continue
             }
 
-            if CheckForReturnToLobby() {
+            if (CheckGameOver()) {
                 AddToLog("Stage ended during upgrades, proceeding to results")
                 successfulCoordinates := []
                 maxedCoordinates := []
@@ -338,7 +342,7 @@ UpgradeUnits() {
                                 slotDone := false
                                 UpgradeUnit(coord.x, coord.y)
 
-                                if CheckForReturnToLobby() {
+                                if (CheckGameOver()) {
                                     AddToLog("Stage ended during upgrades, proceeding to results")
                                     successfulCoordinates := []
                                     MonitorStage()
@@ -381,7 +385,7 @@ UpgradeUnits() {
             for index, coord in successfulCoordinates {
                 UpgradeUnit(coord.x, coord.y)
 
-                if CheckForReturnToLobby() {
+                if (CheckGameOver()) {
                     AddToLog("Stage ended during upgrades, proceeding to results")
                     successfulCoordinates := []
                     MonitorStage()
@@ -420,13 +424,36 @@ StoryMode() {
     StoryMovement()
     
     ; Start stage
-    while !(ok:=FindText(&X, &Y, 573, 485, 678, 514, 0, 0, SelectMode)) {
+    while !(ok:=FindText(&X, &Y, 176, 261, 220, 281, 0.10, 0.10, StoryMaps)) {
         StoryMovement()
     }
 
-    AddToLog("Starting " currentStoryMap " - " currentStoryAct)
     StartStory(currentStoryMap, currentStoryAct)
-    PlayHere(true)
+    StartMode()
+    RestartStage(false)
+}
+
+LegendMode() {
+    global LegendDropDown
+    
+    ; Get current map and act
+    currentLegendStage := LegendDropDown.Text
+    
+    ; Execute the movement pattern
+    AddToLog("Moving to position for " currentLegendStage)
+
+    FixClick(564, 204) ; Exit Daily Reward
+    Sleep (1500)
+
+    LegendMovement()
+    
+    ; Start stage
+    while !(ok:=FindText(&X, &Y, 183, 239, 228, 257, 0.10, 0.10, LegendMaps)) {
+        LegendMovement()
+    }
+
+    StartLegend(currentLegendStage)
+    StartMode()
     RestartStage(false)
 }
 
@@ -446,13 +473,12 @@ RaidMode() {
     RaidMovement()
     
     ; Start stage
-    while !(ok := FindText(&X, &Y, 551, 453, 640, 478, 0.10, 0.10, SelectRaid)) {
+    while !(ok := FindText(&X, &Y, 195, 236, 235, 253, 0.10, 0.10, RaidMaps)) {
         RaidMovement()
     }
 
-    AddToLog("Starting " currentRaidMap " - " currentRaidAct)
     StartRaid(currentRaidMap, currentRaidAct)
-    PlayHere(true)
+    StartMode()
     RestartStage(false)
 }
 
@@ -478,27 +504,6 @@ RestartCustomStage() {
     MonitorStage()
 }
 
-MonitorEndScreen() {
-
-    Loop {
-        Sleep(1000)
-        if (CheckForReturnToLobby()) {
-            AddToLog("Found Lobby Text - Current Mode: " ModeDropdown.Text)
-            if (ModeDropdown.Text = "Story") {
-                HandleStoryMode()
-            } else if (ModeDropdown.Text = "Raid") {
-                HandleRaidMode()
-            } else if (ModeDropdown.Text = "Tower") {
-                HandleTowerMode()
-            } else {
-                HandleDefaultMode()
-            }
-            return
-        }    
-        Reconnect()
-    }
-}
-
 HandleStoryMode() {
     global lastResult
     if (ReturnLobbyBox.Value) {
@@ -515,7 +520,8 @@ HandleStoryMode() {
 }
 
 HandleTowerMode() {
-    if (ReturnLobbyBox.Value) {
+    global lastResult
+    if (lastResult = "loss") {
         ClickReturnToLobby()
         return CheckLobby()
     } else {
@@ -525,7 +531,6 @@ HandleTowerMode() {
 }
 
 HandleRaidMode() {
-    AddToLog("Handling Raid end")
     if (ReturnLobbyBox.Value) {
         ClickReturnToLobby()
         return CheckLobby()
@@ -536,7 +541,6 @@ HandleRaidMode() {
 }
 
 HandleDefaultMode() {
-    AddToLog("Handling end case")
     if (ReturnLobbyBox.Value) {
         ClickReturnToLobby()
         return CheckLobby()
@@ -559,7 +563,7 @@ MonitorStage() {
 
         Reconnect()
 
-        while !CheckForReturnToLobby() {  
+        while !CheckGameOver() {
             ClickWhileWaiting()
         }
         
@@ -581,7 +585,16 @@ MonitorStage() {
 
         SendWebhookWithTime(true, stageLength)
 
-        return MonitorEndScreen()
+        if (ModeDropdown.Text = "Story") {
+            HandleStoryMode()
+        } else if (ModeDropdown.Text = "Raid") {
+            HandleRaidMode()
+        } else if (ModeDropdown.Text = "Tower") {
+            HandleTowerMode()
+        } else {
+            HandleDefaultMode()
+        }
+        return
     }
 }
 
@@ -590,41 +603,65 @@ StoryMovement() {
     FixClick(30, 300)
     Sleep (2000)
     ;Walk To Room
-    SendInput ("{s down}")
-    SendInput ("{d down}")
-    Sleep (2500)
-    SendInput ("{s up}")
-    SendInput ("{d up}")
-    Sleep (1000)
     SendInput ("{w down}")
-    SendInput ("{d down}")
-    Sleep (2500)
+    Sleep (3500)
     SendInput ("{w up}")
+    KeyWait "w"
+    Sleep (1000)
+    SendInput ("{d down}")
+    Sleep (5600)
     SendInput ("{d up}")
+    KeyWait "d"
+    Sleep (1000)
+    SendInput ("{s down}")
+    Sleep (2000)
+    SendInput ("{s up}")
+    KeyWait "w"
+    Sleep (1000)
+}
+
+LegendMovement() {
+    ; Click Play
+    FixClick(30, 300)
+    Sleep (2000)
+    ;Walk To Room
+    SendInput ("{w down}")
+    Sleep (3500)
+    SendInput ("{w up}")
+    KeyWait "w"
+    Sleep (1000)
+    SendInput ("{a down}")
+    Sleep (5800)
+    SendInput ("{a up}")
+    KeyWait "a"
+    Sleep (1000)
+    SendInput ("{s down}")
+    Sleep (2000)
+    SendInput ("{s up}")
+    KeyWait "w"
+    Sleep (1000)
 }
 
 RaidMovement() {
     ; Click Play
-    FixClick(763, 235)
-    Sleep (2000)
-    FixClick(526, 427)
+    FixClick(30, 300)
     Sleep (2000)
     ;Walk To Room
-    SendInput ("{a down}")
-    Sleep (1700)
-    SendInput ("{a up}")
-    Sleep (1000)
     SendInput ("{w down}")
-    Sleep (1200)
+    Sleep (11000)
     SendInput ("{w up}")
+    KeyWait "w"
     Sleep (1000)
     SendInput ("{a down}")
-    Sleep (1100)
+    Sleep (8000)
     SendInput ("{a up}")
+    KeyWait "a"
     Sleep (1000)
-    SendInput ("{w down}")
-    Sleep (500)
-    SendInput ("{w up}")
+    SendInput ("{s down}")
+    Sleep (4000)
+    SendInput ("{s up}")
+    KeyWait "w"
+    Sleep (1000)
 }
 
 StartStory(map, act) {
@@ -633,13 +670,14 @@ StartStory(map, act) {
     ; Closes Player leaderboard
     FixClick(640, 70)
     Sleep(500)
+
     ; Get Story map 
     StoryMap := GetMapData("StoryMap", map)
     
     ; Scroll if needed
     if (StoryMap.scrolls > 0) {
         AddToLog("Scrolling down " StoryMap.scrolls " for " map)
-        MouseMove(210, 260)
+        MouseMove(255, 280)
         loop StoryMap.scrolls {
             SendInput("{WheelDown}")
             Sleep(250)
@@ -670,8 +708,8 @@ StartStory(map, act) {
     Sleep(1000)
 
     if (HardModeBox.Value) {
-        FixClick(625, 390) ; Click Hard Mode
-        Sleep(500)
+        FixClick(590, 380) ; Click Hard Mode
+        Sleep(1000)
     }
 
     if (act != "Infinity") {
@@ -686,13 +724,12 @@ StartRaid(map, act) {
     ; Closes Player leaderboard
     FixClick(640, 70)
     Sleep(500)
-    ; Get Story map 
+
     RaidMap := GetMapData("RaidMap", map)
     
-    ; Scroll if needed
     if (RaidMap.scrolls > 0) {
         AddToLog("Scrolling down " RaidMap.scrolls " for " map)
-        MouseMove(210, 260)
+        MouseMove(300, 240)
         loop RaidMap.scrolls {
             SendInput("{WheelDown}")
             Sleep(250)
@@ -700,27 +737,37 @@ StartRaid(map, act) {
     }
     Sleep(1000)
     
-    ; Click on the map
     FixClick(RaidMap.x, RaidMap.y)
     Sleep(1000)
     
-    ; Get act details
-    RaidAct := GetMapData("RaidAct", act)
+    SetModulationModifier()
+    return true
+}
+
+StartLegend(map) {
+    AddToLog("Selecting map: " map)
     
-    ; Scroll if needed for act
-    if (RaidAct.scrolls > 0) {
-        AddToLog("Scrolling down " RaidAct.scrolls " times for " act)
-        MouseMove(300, 240)
-        loop RaidAct.scrolls {
+    ; Closes Player leaderboard
+    FixClick(640, 70)
+    Sleep(500)
+
+    LegendMap := GetMapData("LegendMap", map)
+    
+    ; Scroll if needed
+    if (LegendMap.scrolls > 0) {
+        AddToLog("Scrolling down " LegendMap.scrolls " for " map)
+        MouseMove(210, 260)
+        loop LegendMap.scrolls {
             SendInput("{WheelDown}")
             Sleep(250)
         }
     }
     Sleep(1000)
     
-    ; Click on the act
-    FixClick(RaidAct.x, RaidAct.y)
+    ; Click on the map
+    FixClick(LegendMap.x, LegendMap.y)
     Sleep(1000)
+
     SetModulationModifier()
     return true
 }
@@ -730,12 +777,21 @@ StartChallenge() {
     Sleep(500)
 }
 
-PlayHere(clickConfirm := true) {
-    if (clickConfirm) {
-        FixClick(620, 465) ; Click Confirm
-        Sleep (1000)
+StartMode() {
+    if (ModeDropdown.Text = "Story") {
+        FixClick(575, 445)
     }
-    FixClick(158, 473) ; Click Start
+    else if (ModeDropdown.Text = "Raid") {
+        FixClick(560, 410)
+    } else {
+        FixClick(570, 430)
+    }
+    Sleep (500)
+    if (ModeDropdown.Text = "Story") {
+        FixClick(155, 475) ; Click Start
+    } else {
+        FixClick(460, 415) ; Click Start
+    }
     Sleep (500)
 }
 
@@ -765,7 +821,7 @@ Zoom() {
 }
 
 DetectMap() {
-    AddToLog("Determining Movement Necessity on Map...")
+    AddToLog("Waiting for map...")
     startTime := A_TickCount
     
     Loop {
@@ -782,33 +838,20 @@ DetectMap() {
         if (ModeDropdown.Text = "Story") {
             AddToLog("Map detected: " StoryDropdown.Text)
             return StoryDropdown.Text
-        }
-
-        if (ModeDropdown.Text = "Raid") {
+        } else if (ModeDropdown.Text = "Legend") {
+            AddToLog("Map detected: " LegendDropDown.Text)
+            return LegendDropDown.Text
+        } else if (ModeDropdown.Text = "Raid") {
             AddToLog("Map detected: " RaidDropdown.Text)
             return RaidDropdown.Text
-        }
-
-        if (ModeDropdown.Text = "Tower") {
+        } else if (ModeDropdown.Text = "Tower") {
             AddToLog("Map detected: Leveling Tower")
             return "Leveling Tower"
-        }
-
-        mapPatterns := Map(
-
-
-        )
-
-        for mapName, pattern in mapPatterns {
-            if (ok := FindText(&X, &Y, 14, 494, 329, 552, 0, 0, pattern)) {
-                AddToLog("Detected map: " mapName)
-                return mapName
-            }
-        }
+        }        
 
         ; Check for Unit Manager
         if (ok := CheckForUnitManager()) {
-            AddToLog("No Map Found or Movement Unnecessary")
+            AddToLog("No map was found")
             return "no map found"
         }
 
@@ -826,7 +869,11 @@ HandleMapMovement(MapName) {
 }
 
 RestartStage(seamless := false) {
-    currentMap := DetectMap()
+    global currentMap
+
+    if (currentMap = "") {
+        currentMap := DetectMap()
+    }
     
     ; Wait for loading
     CheckLoaded()
@@ -839,7 +886,7 @@ RestartStage(seamless := false) {
         }
     } else {
         BasicSetup(true)
-        AddToLog("Game supports seamless replay, skipping most of setup")
+        AddToLog("Game supports seamless replay, skipping setup")
     }
 
     ; Wait for game to actually start
@@ -909,6 +956,7 @@ UpgradeUnit(x, y) {
 }
 
 CheckLobby() {
+    global currentMap
     loop {
         Sleep 1000
         if (ok := FindText(&X, &Y, 1, 264, 53, 304, 0, 0, AreaText)) {
@@ -916,6 +964,7 @@ CheckLobby() {
         }
         Reconnect()
     }
+    currentMap := ""
     AddToLog("Returned to lobby, restarting selected mode")
     return StartSelectedMode()
 }
@@ -943,8 +992,12 @@ StartedGame() {
 
 StartSelectedMode() {
     if (ModeDropdown.Text = "Story") {
-        CustomMode()
-       ; StoryMode()
+        ;CustomMode()
+        StoryMode()
+    }
+    else if (ModeDropdown.Text = "Legend") {
+        LegendMode()
+        ;RaidMode()
     }
     else if (ModeDropdown.Text = "Raid") {
         CustomMode()
@@ -1008,41 +1061,42 @@ PlacementSpeed() {
 GetMapData(type, name) {
     data := Map(
         "StoryMap", Map(
-            "Green Planet", {x: 210, y: 260, scrolls: 0},
-            "Ghoul City", {x: 210, y: 330, scrolls: 0},
-            "Sharkman Island", {x: 210, y: 410, scrolls: 0},
-
-            "Hidden Village", {x: 210, y: 345, scrolls: 1},
-            "Fairy Town", {x: 210, y: 430, scrolls: 1},
-
-            "Cursed Town", {x: 210, y: 360, scrolls: 2},
-            "Corp City", {x: 210, y: 425, scrolls: 2},
-
-            "Soul World", {x: 210, y: 365, scrolls: 3},
-            "Strongest City", {x: 210, y: 430, scrolls: 3}
+            "Green Planet", {x: 250, y: 280, scrolls: 0},
+            "Ghoul City", {x: 250, y: 325, scrolls: 0},
+            "Sharkman Island", {x: 250, y: 365, scrolls: 0},
+            "Hidden Village", {x: 250, y: 405, scrolls: 0},
+            "Fairy Town", {x: 250, y: 320, scrolls: 1},
+            "Cursed Town", {x: 250, y: 360, scrolls: 1},
+            "Corp City", {x: 250, y: 405, scrolls: 1},
+            "Soul World", {x: 250, y: 360, scrolls: 2},
+            "Strongest City", {x: 250, y: 405, scrolls: 2}
         ),
         "StoryAct", Map(
-            "Act 1", {x: 380, y: 245, scrolls: 0},
-            "Act 2", {x: 380, y: 275, scrolls: 0},
-            "Act 3", {x: 380, y: 305, scrolls: 0},
-            "Act 4", {x: 380, y: 335, scrolls: 0},
-            "Act 5", {x: 380, y: 365, scrolls: 0},
-            "Act 6", {x: 380, y: 395, scrolls: 0},
-            "Infinity", {x: 380, y: 425, scrolls: 0}
+            "Act 1", {x: 395, y: 270, scrolls: 0},
+            "Act 2", {x: 395, y: 290, scrolls: 0},
+            "Act 3", {x: 395, y: 315, scrolls: 0},
+            "Act 4", {x: 395, y: 335, scrolls: 0},
+            "Act 5", {x: 395, y: 360, scrolls: 0},
+            "Act 6", {x: 395, y: 385, scrolls: 0},
+            "Infinity", {x: 395, y: 405, scrolls: 0}
+        ),
+        "LegendMap", Map(
+            "Hell", {x: 260, y: 250, scrolls: 0},
+            "Shadow City", {x: 260, y: 300, scrolls: 0}
         ),
         "RaidMap", Map(
-            "Green Planet", {x: 380, y: 250, scrolls: 0},
-            "Hollow Desert", {x: 380, y: 300, scrolls: 0},
-            "Red Palace", {x: 380, y: 350, scrolls: 0},
-            "Sorcery Academy", {x: 380, y: 400, scrolls: 0},
+            "Green Planet", {x: 250, y: 245, scrolls: 0},
+            "Hollow Desert", {x: 250, y: 290, scrolls: 0},
+            "Red Palace", {x: 250, y: 335, scrolls: 0},
+            "Sorcery Academy", {x: 250, y: 375, scrolls: 0},
 
-            "Lookout", {x: 380, y: 310, scrolls: 1},
-            "Slayers District", {x: 380, y: 360, scrolls: 1},
-            "Underground Tomb", {x: 380, y: 400, scrolls: 1},
+            "Lookout", {x: 250, y: 275, scrolls: 1},
+            "Slayers District", {x: 250, y: 325, scrolls: 1},
+            "Underground Tomb", {x: 250, y: 365, scrolls: 1},
 
-            "Boru's Room", {x: 630, y: 340, scrolls: 2},
-            "Candy Park", {x: 630, y: 390, scrolls: 2}
-
+            "Boru's Room", {x: 250, y: 285, scrolls: 2},
+            "Candy Park", {x: 250, y: 325, scrolls: 2},
+            "Aura Room", {x: 250, y: 365, scrolls: 2}
         ),
         "RaidAct", Map(
             "Act 1", {x: 380, y: 245, scrolls: 0},
@@ -1051,27 +1105,14 @@ GetMapData(type, name) {
             "Act 4", {x: 380, y: 335, scrolls: 0},
             "Act 5", {x: 380, y: 365, scrolls: 0},
             "Act 6", {x: 380, y: 395, scrolls: 0}
-        ),
-        "LegendMap", Map(
-            "Magic Hills", {x: 630, y: 240, scrolls: 0},
-            "Spirit Invasion", {x: 630, y: 290, scrolls: 0},
-            "Space Center", {x: 630, y: 340, scrolls: 0},
-            "Fabled Kingdom", {x: 630, y: 390, scrolls: 0},
-            "Ruined City", {x: 630, y: 440, scrolls: 0},
-
-            "Virtual Dungeon", {x: 630, y: 350, scrolls: 1},
-            "Dungeon Throne", {x: 630, y: 405, scrolls: 1},
-            "Rain Village", {x: 630, y: 440, scrolls: 1}
-        ),
-        "LegendAct", Map(
-            "Act 1", {x: 285, y: 235, scrolls: 0},
-            "Act 2", {x: 285, y: 270, scrolls: 0},
-            "Act 3", {x: 285, y: 305, scrolls: 0},
-            "Act 4", {x: 285, y: 340, scrolls: 0},
-            "Act 5", {x: 285, y: 375, scrolls: 0},
-            "Act 6", {x: 285, y: 395, scrolls: 0}
         )
     )
 
     return data.Has(type) && data[type].Has(name) ? data[type][name] : {}
+}
+
+CheckGameOver() {
+    if (ok := FindText(&X, &Y, 453, 202, 627, 228, 0.10, 0.10, XP)) {
+        return true
+    }
 }

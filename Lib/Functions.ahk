@@ -53,6 +53,7 @@ SaveUINavSettings(*) {
     ; Hide all dropdowns first
     StoryDropdown.Visible := false
     StoryActDropdown.Visible := false
+    LegendDropDown.Visible := false
     RaidDropdown.Visible := false
     RaidActDropdown.Visible := false
     HardModeBox.Visible := false
@@ -66,6 +67,9 @@ SaveUINavSettings(*) {
         RaidDropdown.Visible := true
         RaidActDropdown.Visible := true
         mode := "Raid"
+    } else if (selected = "Legend") {
+        LegendDropDown.Visible := true
+        mode := "Legend"
     } else if (selected = "Custom") {
         mode := "Custom"
     } else {
@@ -129,6 +133,7 @@ OnConfirmClick(*) {
     ModeDropdown.Visible := false
     StoryDropdown.Visible := false
     StoryActDropdown.Visible := false
+    LegendDropDown.Visible := false
     RaidDropdown.Visible := false
     RaidActDropdown.Visible := false
     ConfirmButton.Visible := false
@@ -164,21 +169,45 @@ OpenDiscord() {
     Run("https://discord.gg/mistdomain")
 }
 
-ClickReturnToLobby() {
-    ClickUntilGone(0, 0, 151, 433, 655, 469, ReturnToLobbyText, 0, -35)
+/*ClickReturnToLobby() {
+    ClickUntilGoneWithTolerance(0, 0, 151, 433, 655, 469, 0.10, 1, ReturnToLobbyText, 0, -35)
 }
 
 ClickNextRoom() {
-    ClickUntilGone(0, 0, 151, 433, 655, 469, ReturnToLobbyText, -420, -35)
+    ClickUntilGoneWithTolerance(0, 0, 151, 433, 655, 469, 0.10, 1, ReturnToLobbyText, -420, -35)
 }
 
 ClickReplay() {
-    ClickUntilGone(0, 0, 151, 433, 655, 469, ReturnToLobbyText, -150, -35)
+    ClickUntilGoneWithTolerance(0, 0, 151, 433, 655, 469, 0.10, 1, ReturnToLobbyText, -150, -35)
+}*/
+
+ClickReplay() {
+    ClickUntilGoneWithTolerance(0, 0, 453, 202, 627, 228, 0.10, 0.10, XP, -0, 200)
+}
+
+ClickNextRoom() {
+    ClickUntilGoneWithTolerance(0, 0, 453, 202, 627, 228, 0.10, 0.10, XP, -300, 200)
+}
+
+ClickReturnToLobby() {
+    ClickUntilGoneWithTolerance(0, 0, 453, 202, 627, 228, 0.10, 0.10, XP, 100, 200)
 }
 
 ClickUntilGone(x, y, searchX1, searchY1, searchX2, searchY2, textToFind, offsetX:=0, offsetY:=0, textToFind2:="") {
     while (ok := FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind) || 
            textToFind2 && FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, 0, 0, textToFind2)) {
+        if (offsetX != 0 || offsetY != 0) {
+            FixClick(X + offsetX, Y + offsetY)  
+        } else {
+            FixClick(x, y) 
+        }
+        Sleep(1000)
+    }
+}
+
+ClickUntilGoneWithTolerance(x, y, searchX1, searchY1, searchX2, searchY2, tolerance1, tolerance2, textToFind, offsetX:=0, offsetY:=0, textToFind2:="") {
+    while (ok := FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, tolerance1, tolerance2, textToFind) || 
+           textToFind2 && FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, tolerance1, tolerance2, textToFind2)) {
         if (offsetX != 0 || offsetY != 0) {
             FixClick(X + offsetX, Y + offsetY)  
         } else {
@@ -231,52 +260,51 @@ BasicSetup(replay := false) {
     if (!replay) {
         SendInput("{Tab}") ; Closes Player leaderboard
         Sleep 300
-        FixClick(564, 72) ; Closes Player leaderboard
+        FixClick(487, 72) ; Closes Player leaderboard
         Sleep 300
         CloseChat()
         Sleep 1500
-        ;ChangeSpeed()
+        ChangeSpeed()
         Sleep 1500
         Zoom()
         Sleep 1500
     }
-    ;CheckForVoteScreen()
+    CheckForVoteScreen()
     Sleep 300
 }
 
 SetModulationModifier() {
+    AddToLog("Setting difficulty...")
     if (ModeDropdown.Text = "Story") {
-        FixClick(378, 465)
+        FixClick(405, 440)
+    }
+    else if (ModeDropdown.Text = "Raid") {
+        FixClick(385, 410)
     } else {
-        FixClick(392, 432) ; Open Modifier
+        FixClick(390, 430) ; Open Modifier
     }
     Sleep(500)
-    FixClick(343, 330) ; Click Modifier Box
+    FixClick(275, 330) ; Click Modifier Box
     Sleep(500)
     Send(modulationEdit.Value) ; Enter Modifier
     Sleep(500)
-    FixClick(400, 420) ; Confirm Modifier
+    FixClick(380, 420) ; Confirm Modifier
     Sleep(500)
+    AddToLog("Set difficulty to: " modulationEdit.Value)
 }
 
 ChangeSpeed() {
-    if (ModeDropdown.Text = "Story") {
-        if (StoryActDropdown.Text = "Infinity") {
-            loop 3 {
-                FixClick(585, 550)
-                Sleep (500)
-            }
-        } else {
-            loop 2 {
-                FixClick(585, 550)
-                Sleep (500)
-            }
-        }
-    } else {
-        loop 2 {
-            FixClick(585, 550)
-            Sleep (500)
-        }
+    clicks := 2
+
+    if (ModeDropdown.Text = "Story" && StoryActDropdown.Text = "Infinity") {
+        clicks := 3
+    }
+    else if (ModeDropdown.Text = "Raid") {
+        clicks := 3
+    }
+    loop clicks {
+        FixClick(600, 550)
+        Sleep(500)
     }
 }
 
@@ -314,5 +342,20 @@ Reconnect() {
                 Reconnect() 
             }
         }
+    }
+}
+
+CopyMouseCoords() {
+    MouseGetPos(&x, &y)
+    A_Clipboard := ""  ; Clear the clipboard first
+    ClipWait(0.5)  ; Optional: wait for it to clear
+
+    A_Clipboard := x ", " y
+    ClipWait(0.5)  ; Wait for the clipboard to be ready
+
+    if (A_Clipboard = x ", " y) {
+        AddToLog("Copied: " x ", " y)
+    } else {
+        AddToLog("Failed to copy coordinates.")
     }
 }
