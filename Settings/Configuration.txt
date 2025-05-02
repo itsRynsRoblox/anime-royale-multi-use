@@ -18,8 +18,8 @@ Placement6=1
 
 [UpgradePriority]
 Priority1=1
-Priority2=2
-Priority3=3
+Priority2=1
+Priority3=2
 Priority4=4
 Priority5=5
 Priority6=6
@@ -31,6 +31,22 @@ UpgradeEnabled3=0
 UpgradeEnabled4=0
 UpgradeEnabled5=0
 UpgradeEnabled6=0
+
+[UpgradeLimitEnabled]
+UpgradeLimitEnabled1=0
+UpgradeLimitEnabled2=0
+UpgradeLimitEnabled3=0
+UpgradeLimitEnabled4=0
+UpgradeLimitEnabled5=0
+UpgradeLimitEnabled6=0
+
+[UpgradeLimit]
+UpgradeLimit1=0
+UpgradeLimit2=0
+UpgradeLimit3=0
+UpgradeLimit4=0
+UpgradeLimit5=0
+UpgradeLimit6=0
 
 [PlacementLogic]
 Logic=1
@@ -50,13 +66,25 @@ Upgrade=1
 [Modulation]
 Value=1
 
+[Lobby]
+LobbyDelay=3
+
+[Webhook]
+WebhookDelay=4
+
+[Nuke]
+NukeEnabled=0
+NukeSlot=1
+NukeDelay=10
+
 [SavedCoordinates]
 [Preset 1]
 NoCoordinatesSaved
 [Preset 2]
 NoCoordinatesSaved
 [Preset 3]
-NoCoordinatesSaved
+X=415, Y=311
+X=533, Y=313
 [Preset 4]
 NoCoordinatesSaved
 [Preset 5]
@@ -64,4 +92,6 @@ NoCoordinatesSaved
 [Preset 6]
 NoCoordinatesSaved
 [Preset 7]
-NoCoordinatesSaved
+X=233, Y=326
+X=416, Y=380
+X=430, Y=304

@@ -359,3 +359,19 @@ CopyMouseCoords() {
         AddToLog("Failed to copy coordinates.")
     }
 }
+
+CheckForReturnToLobby() {
+    ; Check for return to lobby text
+    if (ok := FindText(&X, &Y, 151, 433, 655, 469, 0.10, 1, ReturnToLobbyText)) {
+        return true
+    }
+    return false
+}
+
+CheckForUnitManager() {
+    ; Check for unit manager text
+    if (ok := FindText(&X, &Y, 768, 286, 785, 314, 0.05, 0.10, UnitManager)) {
+        return true
+    }
+    return false
+}

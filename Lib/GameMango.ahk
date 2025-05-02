@@ -3,6 +3,7 @@
 global macroStartTime := A_TickCount
 global stageStartTime := A_TickCount
 global currentMap := ""
+global nukeUnitSold := false
 
 LoadKeybindSettings()  ; Load saved keybinds
 ;CheckForUpdates()
@@ -42,33 +43,16 @@ TogglePause(*) {
     }
 }
 
-CheckForReturnToLobby() {
-    ; Check for return to lobby text
-    if (ok := FindText(&X, &Y, 151, 433, 655, 469, 0.10, 1, ReturnToLobbyText)) {
-        return true
-    }
-    return false
-}
+StartUnitPlacement(untilSuccessful := true) {
+    global successfulCoordinates, maxedCoordinates, nukeCoordinates, placedCounts
 
-CheckForUnitManager() {
-    ; Check for unit manager text
-    if (ok := FindText(&X, &Y, 768, 286, 785, 314, 0.05, 0.10, UnitManager)) {
-        return true
-    }
-    return false
-}
-
-PlacingUnits(untilSuccessful := true) {
-    global successfulCoordinates, maxedCoordinates
-    successfulCoordinates := []
-    maxedCoordinates := []
-    placedCounts := Map()  
+    ResetPlacementVariables()
+    alreadyUsedCoordinates := [] ; We can store used coordinates here for faster lookup
 
     anyEnabled := false
+    ; Check if any unit slot is enabled
     for slotNum in [1, 2, 3, 4, 5, 6] {
-        enabled := "enabled" slotNum
-        enabled := %enabled%
-        enabled := enabled.Value
+        enabled := GetSlotEnabled(slotNum)
         if (enabled) {
             anyEnabled := true
             break
@@ -80,88 +64,124 @@ PlacingUnits(untilSuccessful := true) {
         return MonitorStage()
     }
 
-    placementPoints := PlacementPatternDropdown.Text = "Custom" ? UseCustomPoints() : PlacementPatternDropdown.Text = "Circle" ? GenerateCirclePoints() : PlacementPatternDropdown.Text = "Grid" ? GenerateGridPoints() : PlacementPatternDropdown.Text = "Spiral" ? GenerateSpiralPoints() : PlacementPatternDropdown.Text = "Up and Down" ? GenerateUpandDownPoints() : GenerateRandomPoints()
+    ; Select placement pattern based on dropdown choice
+    placementPoints := GetPlacementPattern()
 
-    ; Go through each slot
+    ; Go through each slot and place units
     for slotNum in [1, 2, 3, 4, 5, 6] {
-        enabled := "enabled" slotNum
-        enabled := %enabled%
-        enabled := enabled.Value
-
-        ; Get number of placements wanted for this slot
-        placements := "placement" slotNum
-        placements := %placements%
-        placements := Integer(placements.Text)
-
+        enabled := GetSlotEnabled(slotNum)
+        placements := GetPlacementsForSlot(slotNum)
+        
+        ; Skip if slot is not enabled or no placements requested
+        if (!enabled || placements <= 0)
+            continue
+        
         ; Initialize count if not exists
         if !placedCounts.Has(slotNum)
             placedCounts[slotNum] := 0
 
-        ; If enabled, place all units for this slot
-        if (enabled && placements > 0) {
-            AddToLog("Placing Unit " slotNum " (0/" placements ")")
-            
-            for point in placementPoints {
-                ; Skip if this coordinate was already used successfully
-                alreadyUsed := false
-                for coord in successfulCoordinates {
-                    if (coord.x = point.x && coord.y = point.y) {
-                        alreadyUsed := true
-                        break
-                    }
-                }
-                for coord in maxedCoordinates {
-                    if (coord.x = point.x && coord.y = point.y) {
-                        alreadyUsed := true
-                        break
-                    }
-                }
-                if (alreadyUsed)
-                    continue
+        AddToLog("Placing Unit " slotNum " (0/" placements ")")
 
-                ; If untilSuccessful is false, try once and move on
-                if (!untilSuccessful) {
-                    if (placedCounts[slotNum] < placements) {
-                        if PlaceUnit(point.x, point.y, slotNum) {
-                            successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
-                            placedCounts[slotNum] += 1
-                            AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
-                            FixClick(700, 560) ; Move Click
-                            AttemptUpgrade()
-                        }
-                        AttemptUpgrade()
-                    }
-                }
-                ; If untilSuccessful is true, keep trying the same point until it works
-                else {
-                    while (placedCounts[slotNum] < placements) {
-                        if PlaceUnit(point.x, point.y, slotNum) {
-                            successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
-                            placedCounts[slotNum] += 1
-                            AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
-                            FixClick(700, 560) ; Move Click
-                            AttemptUpgrade()
-                            break ; Move to the next placement spot
-                        }
-                        AttemptUpgrade()
+        ; Loop through placement points for the current slot
+        for point in placementPoints {
+            if (IsCoordinateUsed(point)) ; Skip if coordinate is already used
+                continue
 
-                        if (CheckGameOver()) {
-                            return MonitorStage()
-                        }
+            ; Handle placement based on untilSuccessful flag
+            if (untilSuccessful) {
+                PlaceUnitUntilSuccessful(slotNum, point, placements)
+            } else {
+                PlaceUnitOnce(slotNum, point, placements)
+            }
 
-                        Reconnect()
-                        Sleep(500) ; Prevents spamming clicks too fast
-                    }
-                }
-
-                if (CheckGameOver()) {
-                    return MonitorStage()
-                }
+            if (CheckGameOver()) {
+                return MonitorStage()
             }
         }
     }
     AddToLog("All units placed to requested amounts")
-    UpgradeUnits()
+}
+
+ResetPlacementVariables() {
+    successfulCoordinates := []
+    maxedCoordinates := []
+    nukeCoordinates := []
+    placedCounts := Map()
+}
+
+; Helper Functions
+GetSlotEnabled(slotNum) {
+    enabledVar := "enabled" slotNum
+    enabledValue := %enabledVar%
+    return enabledValue.Value
+}
+
+GetPlacementPattern() {
+    return PlacementPatternDropdown.Text = "Custom" ? UseCustomPoints() :
+           PlacementPatternDropdown.Text = "Circle" ? GenerateCirclePoints() :
+           PlacementPatternDropdown.Text = "Grid" ? GenerateGridPoints() :
+           PlacementPatternDropdown.Text = "Spiral" ? GenerateSpiralPoints() :
+           PlacementPatternDropdown.Text = "Up and Down" ? GenerateUpandDownPoints() : GenerateRandomPoints()
+}
+
+GetPlacementsForSlot(slotNum) {
+    placementsVar := "placement" slotNum
+    placementsValue := %placementsVar%
+    return Integer(placementsValue.Text)
+}
+
+IsCoordinateUsed(point) {
+    for coord in successfulCoordinates
+        if (coord.x = point.x && coord.y = point.y)
+            return true
+    for coord in maxedCoordinates
+        if (coord.x = point.x && coord.y = point.y)
+            return true
+    return false
+}
+
+PlaceUnitOnce(slotNum, point, placements) {
+    if (placedCounts[slotNum] < placements) {
+        if PlaceUnit(point.x, point.y, slotNum) {
+            successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
+            placedCounts[slotNum] += 1
+            AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
+            FixClick(700, 560) ; Move Click
+            HandleNukeUnit(slotNum, point)
+            AttemptUpgrade()
+        }
+    }
+}
+
+PlaceUnitUntilSuccessful(slotNum, point, placements) {
+    while (placedCounts[slotNum] < placements) {
+        if PlaceUnit(point.x, point.y, slotNum) {
+            successfulCoordinates.Push({x: point.x, y: point.y, slot: slotNum})
+            placedCounts[slotNum] += 1
+            AddToLog("Placed Unit " slotNum " (" placedCounts[slotNum] "/" placements ")")
+            FixClick(700, 560) ; Move Click
+            HandleNukeUnit(slotNum, point)
+            AttemptUpgrade()
+            break ; Exit the loop and move to the next placement point
+        }
+        AttemptUpgrade()
+        if (CheckGameOver()) {
+            return MonitorStage()
+        }
+        Reconnect()
+        Sleep(500) ; Prevents spamming clicks too fast
+    }
+}
+
+HandleNukeUnit(slotNum, point) {
+    if (NukeUnitSlotEnabled.Value) {
+        if (slotNum = NukeUnitSlot.Value) {
+            nukeCoordinates.Push({x: point.x, y: point.y})
+            Sleep (500)
+            AddToLog("Added slot: " slotNum " to nuke coordinates...")
+            Sleep (500)
+        }
+    }
 }
 
 AttemptUpgrade() {
@@ -292,120 +312,151 @@ AttemptUpgrade() {
 }
 
 UpgradeUnits() {
-    global successfulCoordinates
+    global stage
+    global successfulCoordinates, maxedCoordinates
 
-    totalUnits := Map()    
-    upgradedCount := Map()  
-    
-    ; Initialize counters
+    global totalUnits := Map(), upgradedCount := Map()
+
     for coord in successfulCoordinates {
-        if (!totalUnits.Has(coord.slot)) {
-            totalUnits[coord.slot] := 0
-            upgradedCount[coord.slot] := 0
-        }
-        totalUnits[coord.slot]++
+        totalUnits[coord.slot] := (totalUnits.Has(coord.slot) ? totalUnits[coord.slot] + 1 : 1)
+        upgradedCount[coord.slot] := upgradedCount.Has(coord.slot) ? upgradedCount[coord.slot] : 0
     }
 
     AddToLog("Initiating Unit Upgrades...")
-
+    stage := "Upgrading"
     if (PriorityUpgrade.Value) {
         AddToLog("Using priority upgrade system")
         
-        ; Go through each priority level (1-6)
+        ; Iterate over all priorities
         for priorityNum in [1, 2, 3, 4, 5, 6] {
-            ; Find which slot has this priority number
-            for slot in [1, 2, 3, 4, 5, 6] {
-                priority := "priority" slot
-                priority := %priority%
-                if (priority.Text = priorityNum) {
-                    ; Skip if no units in this slot
-                    hasUnitsInSlot := false
-                    for coord in successfulCoordinates {
-                        if (coord.slot = slot) {
-                            hasUnitsInSlot := true
-                            break
-                        }
-                    }
-                    
-                    if (!hasUnitsInSlot) {
-                        continue
-                    }
-
-                    AddToLog("Starting upgrades for priority " priorityNum " (slot " slot ")")
-                    
-                    ; Keep upgrading current slot until all its units are maxed
-                    while true {
-                        slotDone := true
-                        
-                        for index, coord in successfulCoordinates {
-                            if (coord.slot = slot) {
-                                slotDone := false
-                                UpgradeUnit(coord.x, coord.y)
-
-                                if (CheckGameOver()) {
-                                    AddToLog("Stage ended during upgrades, proceeding to results")
-                                    successfulCoordinates := []
-                                    MonitorStage()
-                                    return
-                                }
-
-                                if MaxUpgrade() {
-                                    upgradedCount[coord.slot]++
-                                    AddToLog("Max upgrade reached for Unit " coord.slot " (" upgradedCount[coord.slot] "/" totalUnits[coord.slot] ")")
-                                    successfulCoordinates.RemoveAt(index)
-                                    FixClick(325, 185) ;Close upg menu
-                                    break
-                                }
-
-                                Sleep(200)
-                                FixClick(700, 560) ; Move Click
-                                Reconnect()
-                            }
-                        }
-                        
-                        if (slotDone || successfulCoordinates.Length = 0) {
-                            AddToLog("Finished upgrades for priority " priorityNum)
-                            break
-                        }
+            AddToLog("Starting upgrades for priority " priorityNum)
+    
+            ; Continue upgrading the slots in the current priority until they are all done
+            allSlotsDone := false
+            while (!allSlotsDone) {
+                allSlotsDone := true  ; Assume all slots are done initially
+    
+                ; Loop over each slot and check if it needs to be upgraded
+                for slot in [1, 2, 3, 4, 5, 6] {
+                    priority := "priority" slot
+                    priority := %priority%
+    
+                    ; If the slot matches the current priority and contains units, process upgrades
+                    if (priority.Text = priorityNum && HasUnitsInSlot(slot, successfulCoordinates)) {
+                        ProcessUpgrades(priorityNum, slot)
+                        allSlotsDone := false  ; There's still work to be done for this priority
                     }
                 }
+                Sleep(500)  ; Small sleep to prevent overloading the system while checking
             }
         }
         
         AddToLog("Priority upgrading completed")
-        return MonitorStage()
     } else {
-        ; Normal upgrade (no priority)
-        while true {
-            if (successfulCoordinates.Length == 0) {
-                AddToLog("All units maxed, proceeding to monitor stage")
-                return MonitorStage()
+        while (successfulCoordinates.Length > 0) {
+            ProcessUpgrades("",)
+        }
+        AddToLog("All units maxed, proceeding to monitor stage")
+    }
+
+    return MonitorStage()
+}
+
+HasUnitsInSlot(slot, coordinates) {
+    for coord in coordinates {
+        if (coord.slot = slot)
+            return true
+    }
+    return false
+}
+
+ProcessUpgrades(priorityNum := "", slot := "") {
+    global successfulCoordinates, upgradedCount, totalUnits
+
+    ; Process the units for the given slot and priority
+    slotDone := true
+    for index, coord in successfulCoordinates {
+        priority := "priority" coord.slot
+        priority := %priority%
+
+        ; If the coordinate belongs to the current slot and priority
+        if (coord.slot = slot && priority.Text = priorityNum) {
+            slotDone := false
+
+            if (CheckGameOver()) {
+                return MonitorStage()  ; Exit if the game is over
             }
 
-            for index, coord in successfulCoordinates {
-                UpgradeUnit(coord.x, coord.y)
+            Upgrade(coord, index)  ; Upgrade the unit at this coordinate
 
-                if (CheckGameOver()) {
-                    AddToLog("Stage ended during upgrades, proceeding to results")
-                    successfulCoordinates := []
-                    MonitorStage()
-                    return
-                }
-
-                if MaxUpgrade() {
-                    upgradedCount[coord.slot]++
-                    AddToLog("Max upgrade reached for Unit " coord.slot " (" upgradedCount[coord.slot] "/" totalUnits[coord.slot] ")")
-                    successfulCoordinates.RemoveAt(index)
-                    FixClick(325, 185) ;Close upg menu
-                    continue
-                }
-
-                Sleep(200)
-                FixClick(700, 560) ; Move Click
-                Reconnect()
+            if (MaxUpgrade()) {
+                HandleMaxUpgrade(coord, index)  ; Handle max upgrade if reached
+                break
             }
+
+            Sleep(200)
+            FixClick(700, 560)
         }
     }
+
+    ; After upgrading all units in the current slot for the priority
+    if (slotDone || successfulCoordinates.Length = 0) {
+        AddToLog("Finished upgrades for priority " priorityNum " (slot " slot ")")
+    }
+}
+
+HandleMaxUpgrade(coord, index) {
+    global successfulCoordinates, maxedCoordinates, totalUnits, upgradedCount
+
+    if (IsSet(totalUnits) && IsSet(upgradedCount)) {
+        upgradedCount[coord.slot]++
+        AddToLog("Max upgrade reached for Unit " coord.slot " (" upgradedCount[coord.slot] "/" totalUnits[coord.slot] ")")
+    } else {
+        AddToLog("Max upgrade reached for Unit " coord.slot)
+        maxedCoordinates.Push(coord)
+    }
+    successfulCoordinates.RemoveAt(index)
+}
+
+Upgrade(coord, index) {
+
+    upgradeLimitEnabled := "upgradeLimitEnabled" coord.slot
+    upgradeLimitEnabled := %upgradeLimitEnabled%
+
+    upgradeLimit := "upgradeLimit" coord.slot
+    upgradeLimit := %upgradeLimit%
+    upgradeLimit := String(upgradeLimit.Text)
+
+    if (!upgradeLimitEnabled.Value) {
+        UpgradeUnit(coord.x, coord.y)
+    } else {
+        UpgradeUnitLimit(coord, index, upgradeLimit)
+    }
+}
+
+UpgradeUnitLimit(coord, index, upgradeLimit) {
+    FixClick(coord.x, coord.y - 3)
+    if (WaitForUpgradeLimitText(upgradeLimit + 1, 500)) {
+        HandleMaxUpgrade(coord, index)
+    } else {
+        SendInput("T")
+    }
+}
+
+WaitForUpgradeLimitText(upgradeCap, timeout := 4500) {
+    upgradeTexts := [
+        Upgrade0, Upgrade1, Upgrade2, Upgrade3, Upgrade4, Upgrade5, Upgrade6, Upgrade7, Upgrade8, Upgrade9, Upgrade10, Upgrade11
+    ]
+    targetText := upgradeTexts[upgradeCap]
+
+    startTime := A_TickCount
+    while (A_TickCount - startTime < timeout) {
+        if (FindText(&X, &Y, 97, 299, 171, 318, 0, 0, targetText)) {
+            return true
+        }
+        Sleep 100
+    }
+    return false  ; Timed out
 }
 
 StoryMode() {
@@ -498,7 +549,10 @@ RestartCustomStage() {
     StartedGame()
 
     ; Begin unit placement and management
-    PlacingUnits(PlacementPatternDropdown.Text == "Custom")
+    StartUnitPlacement(PlacementPatternDropdown.Text == "Custom")
+
+    ; Begin upgrades
+    UpgradeUnits()
     
     ; Monitor stage progress
     MonitorStage()
@@ -554,7 +608,7 @@ HandleDefaultMode() {
 }
 
 MonitorStage() {
-    global Wins, loss, mode, StoryActDropdown
+    global Wins, loss, webhookSendTime
 
     lastClickTime := A_TickCount
     
@@ -570,20 +624,23 @@ MonitorStage() {
         AddToLog("Checking win/loss status")
         stageEndTime := A_TickCount
         stageLength := FormatStageTime(stageEndTime - stageStartTime)
-
-        if (ok := FindText(&X, &Y, 144, 171, 355, 203, 0, 0, DefeatText)) {
-            AddToLog("Defeat detected - Stage Length: " stageLength)
-            isWin := false
-            loss += 1
-        }
     
         if (ok := FindText(&X, &Y, 144, 171, 355, 203, 0.10, 0.10, VictoryText)) {
             AddToLog("Victory detected - Stage Length: " stageLength)
             isWin := true
             Wins += 1
+        } else {
+            AddToLog("Defeat detected - Stage Length: " stageLength)
+            isWin := false
+            loss += 1
         }
 
-        SendWebhookWithTime(true, stageLength)
+        if ((A_TickCount - webhookSendTime) >= GetWebhookDelay()) { ; Custom cooldown
+            SendWebhookWithTime(isWin, stageLength)
+            webhookSendTime := A_TickCount
+        } else {
+           UpdateStreak(isWin)
+        }
 
         if (ModeDropdown.Text = "Story") {
             HandleStoryMode()
@@ -893,7 +950,10 @@ RestartStage(seamless := false) {
     StartedGame()
 
     ; Begin unit placement and management
-    PlacingUnits(PlacementPatternDropdown.Text == "Custom")
+    StartUnitPlacement(PlacementPatternDropdown.Text == "Custom")
+
+    ; Begin upgrades
+    UpgradeUnits()
     
     ; Monitor stage progress
     MonitorStage()
@@ -965,6 +1025,7 @@ CheckLobby() {
         Reconnect()
     }
     currentMap := ""
+    Sleep(GetLobbySleep())
     AddToLog("Returned to lobby, restarting selected mode")
     return StartSelectedMode()
 }
@@ -986,6 +1047,9 @@ StartedGame() {
         Sleep(1000)
         AddToLog("Game started")
         global stageStartTime := A_TickCount
+        if (NukeUnitSlotEnabled.Value) {
+            SetTimer(SellUnitIfTimeReached, 1000) ; check every second
+        }
         break
     }
 }
@@ -1114,5 +1178,118 @@ GetMapData(type, name) {
 CheckGameOver() {
     if (ok := FindText(&X, &Y, 453, 202, 627, 228, 0.10, 0.10, XP)) {
         return true
+    }
+}
+
+GetWebhookDelay() {
+    speeds := [0, 60000, 180000, 300000, 600000]  ; Array of sleep values
+    speedIndex := WebhookSleepTimer.Value  ; Get the selected speed value
+
+    if speedIndex is number  ; Ensure it's a number
+        return speeds[speedIndex]  ; Use the value directly from the array
+}
+
+GetLobbySleep() {
+    time := [0, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000, 55000, 60000]  ; Array of sleep values
+    timeIndex := LobbySleepTimer.Value  ; Get the selected speed value
+
+    if timeIndex is number  ; Ensure it's a number
+        return time[timeIndex]  ; Use the value directly from the array
+}
+
+GetSellTimer() {
+    global NukeUnitTimer
+
+    text := Trim(NukeUnitTimer.Text)
+    if (text = "No Delay")
+        return 0
+
+    ; Predefined values
+    predefined := Map(
+        "1 minute", 60000,
+        "3 minutes", 180000,
+        "5 minutes", 300000,
+        "10 minutes", 600000
+    )
+    if predefined.Has(text)
+        return predefined[text]
+
+    ; Custom input like "2:30", "90s", "2m"
+    if RegExMatch(text, "i)^(?:(\d+):)?(\d+)(s|m)?$", &m) {
+        minutes := m[1] != "" ? m[1] : (m[3] = "m" ? m[2] : 0)
+        seconds := m[1] != "" ? m[2] : (m[3] = "s" ? m[2] : (m[3] = "m" ? 0 : m[2]))
+        return (minutes * 60 + seconds) * 1000
+    }
+
+    return 0 ; fallback
+}
+
+SellUnitIfTimeReached() {
+    global nukeUnitSold, nukeCoordinates, successfulCoordinates, maxedCoordinates, stageStartTime, debugMessages
+
+    if nukeUnitSold
+        return
+
+    if (!nukeCoordinates.Length) {
+        if (debugMessages)
+            AddToLog("No nuke coordinates set.")
+        return
+    }
+
+    sellTime := GetSellTimer()
+    if !IsSet(sellTime) || sellTime == 0
+        return ; Timer not configured
+
+    if (A_TickCount - stageStartTime >= sellTime) {
+        nukeUnitSold := true
+        AddToLog("Time to sell unit")
+
+        ; Use reverse loop to safely remove from nukeCoordinates
+        Loop nukeCoordinates.Length {
+            index := nukeCoordinates.Length - A_Index + 1
+            coord := nukeCoordinates[index]
+
+            retries := 3
+            while retries-- {
+                FixClick(coord.x, coord.y)
+                Sleep(300)
+                if CheckUnitExists() {
+                    elapsed := A_TickCount - stageStartTime
+                    SendInput("{X}")
+                    Sleep(500)
+                    AddToLog("Nuke unit sold after " Round(elapsed / 1000, 1) " seconds.")
+
+                    ; Remove from main coord list
+                    nukeCoordinates.RemoveAt(index)
+
+                    ; Remove from successfulCoords and maxedCoords if they match
+                    RemoveCoordFromList(successfulCoordinates, coord)
+                    RemoveCoordFromList(maxedCoordinates, coord)
+
+                    break
+                } else if retries > 0 {
+                    AddToLog("Sell failed, retrying...")
+                } else {
+                    AddToLog("Failed to sell nuke unit after 3 tries.")
+                }
+            }
+        }
+
+        SetTimer(SellUnitIfTimeReached, 0) ; stop checking
+    }
+}
+
+CheckUnitExists() {
+    if (ok:=FindText(&X, &Y, 16, 388, 84, 406, 0.10, 0.10, UnitExistence)) {
+        return true
+    }
+}
+
+RemoveCoordFromList(list, coordToRemove) {
+    Loop list.Length {
+        i := list.Length - A_Index + 1
+        if (list[i].x = coordToRemove.x && list[i].y = coordToRemove.y) {
+            list.RemoveAt(i)
+        }
     }
 }

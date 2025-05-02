@@ -20,8 +20,11 @@ readInSettings() {
     global placement1, placement2, placement3, placement4, placement5, placement6
     global priority1, priority2, priority3, priority4, priority5, priority6
     global upgradeEnabled1, upgradeEnabled2, upgradeEnabled3, upgradeEnabled4, upgradeEnabled5, upgradeEnabled6
+    global upgradeLimitEnabled1, upgradeLimitEnabled2, upgradeLimitEnabled3, upgradeLimitEnabled4, upgradeLimitEnabled5, upgradeLimitEnabled6
+    global UpgradeLimit1, UpgradeLimit2, UpgradeLimit3, UpgradeLimit4, UpgradeLimit5, UpgradeLimit6
 
-    global PlacementPatternDropdown, PlaceSpeed, ReturnLobbyBox, PlacementProfiles, PriorityUpgrade, modulationEdit
+    global PlacementPatternDropdown, PlaceSpeed, ReturnLobbyBox, PlacementProfiles, PriorityUpgrade, modulationEdit, LobbySleepTimer, WebhookSleepTimer
+    global NukeUnitSlotEnabled, NukeUnitSlot, NukeUnitTimer
     global savedCoords
 
     try {
@@ -100,6 +103,18 @@ readInSettings() {
                 case "UpgradeEnabled4": upgradeEnabled4.Value := parts[2]
                 case "UpgradeEnabled5": upgradeEnabled5.Value := parts[2]
                 case "UpgradeEnabled6": upgradeEnabled6.Value := parts[2]
+                case "UpgradeLimit1": UpgradeLimit1.Text := parts[2]
+                case "UpgradeLimit2": UpgradeLimit2.Text := parts[2]
+                case "UpgradeLimit3": UpgradeLimit3.Text := parts[2]
+                case "UpgradeLimit4": UpgradeLimit4.Text := parts[2]
+                case "UpgradeLimit5": UpgradeLimit5.Text := parts[2]
+                case "UpgradeLimit6": UpgradeLimit6.Text := parts[2]
+                case "UpgradeLimitEnabled1": upgradeLimitEnabled1.Value := parts[2]
+                case "UpgradeLimitEnabled2": upgradeLimitEnabled2.Value := parts[2]
+                case "UpgradeLimitEnabled3": upgradeLimitEnabled3.Value := parts[2]
+                case "UpgradeLimitEnabled4": upgradeLimitEnabled4.Value := parts[2]
+                case "UpgradeLimitEnabled5": upgradeLimitEnabled5.Value := parts[2]
+                case "UpgradeLimitEnabled6": upgradeLimitEnabled6.Value := parts[2]
                 case "Priority1": priority1.Text := parts[2]
                 case "Priority2": priority2.Text := parts[2]
                 case "Priority3": priority3.Text := parts[2]
@@ -112,6 +127,11 @@ readInSettings() {
                 case "Lobby": ReturnLobbyBox.Value := parts[2] ; Set the checkbox value
                 case "Upgrade": PriorityUpgrade.Value := parts[2] ; Set the checkbox value
                 case "Value": modulationEdit.Value := parts[2] ; Set the checkbox value
+                case "LobbyDelay": LobbySleepTimer.Value := parts[2]
+                case "WebhookDelay": WebhookSleepTimer.Value := parts[2]
+                case "NukeEnabled": NukeUnitSlotEnabled.Value := parts[2]
+                case "NukeSlot": NukeUnitSlot.Value := parts[2]
+                case "NukeDelay": NukeUnitTimer.Text := parts[2]
 
 
             }
@@ -128,8 +148,11 @@ SaveSettings(*) {
     global placement1, placement2, placement3, placement4, placement5, placement6
     global priority1, priority2, priority3, priority4, priority5, priority6
     global upgradeEnabled1, upgradeEnabled2, upgradeEnabled3, upgradeEnabled4, upgradeEnabled5, upgradeEnabled6
+    global upgradeLimitEnabled1, upgradeLimitEnabled2, upgradeLimitEnabled3, upgradeLimitEnabled4, upgradeLimitEnabled5, upgradeLimitEnabled6
+    global UpgradeLimit1, UpgradeLimit2, UpgradeLimit3, UpgradeLimit4, UpgradeLimit5, UpgradeLimit6
 
-    global PlacementPatternDropdown, PlaceSpeed, ReturnLobbyBox, PlacementProfiles, PriorityUpgrade, modulationEdit
+    global PlacementPatternDropdown, PlaceSpeed, ReturnLobbyBox, PlacementProfiles, PriorityUpgrade, modulationEdit, LobbySleepTimer, WebhookSleepTimer
+    global NukeUnitSlotEnabled, NukeUnitSlot, NukeUnitTimer
     global savedCoords
     try {
         settingsFile := A_ScriptDir "\Settings\Configuration.txt"
@@ -173,6 +196,17 @@ SaveSettings(*) {
         content .= "`nUpgradeEnabled5=" upgradeEnabled5.Value
         content .= "`nUpgradeEnabled6=" upgradeEnabled6.Value
 
+        content .= "`n`n[UpgradeLimitEnabled]"
+        Loop 6 {
+            content .= "`nUpgradeLimitEnabled" A_Index "=" UpgradeLimitEnabled%A_Index%.Value
+        }
+
+        ; Create UpgradeLimit section
+        content .= "`n`n[UpgradeLimit]"
+        Loop 6 {
+            content .= "`nUpgradeLimit" A_Index "=" UpgradeLimit%A_Index%.Text
+        }
+
         content .= "`n`n[PlacementLogic]"
         content .= "`nLogic=" PlacementPatternDropdown.Value "`n"
 
@@ -190,6 +224,17 @@ SaveSettings(*) {
 
         content .= "`n[Modulation]"
         content .= "`nValue=" modulationEdit.Value "`n"
+
+        content .= "`n[Lobby]"
+        content .= "`nLobbyDelay=" LobbySleepTimer.Value "`n"
+
+        content .= "`n[Webhook]"
+        content .= "`nWebhookDelay=" WebhookSleepTimer.Value "`n"
+
+        content .= "`n[Nuke]"
+        content .= "`nNukeEnabled=" NukeUnitSlotEnabled.Value
+        content .= "`nNukeSlot=" NukeUnitSlot.Value
+        content .= "`nNukeDelay=" NukeUnitTimer.Text "`n"
 
         ; Save the stored coordinates
         content .= "`n[SavedCoordinates]`n"

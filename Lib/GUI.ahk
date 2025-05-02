@@ -7,7 +7,7 @@
 ;Update Checker
 global repoOwner := "itsRynsRoblox"
 global repoName := "anime-royale-multi-use"
-global currentVersion := "1.3.2"
+global currentVersion := "1.3.3"
 ; Basic Application Info
 global aaTitle := "Ryn's Anime Royale Macro "
 global version := "v" . currentVersion
@@ -22,9 +22,9 @@ global WM_SIZE := 0x0005
 global centerX := 408
 global centerY := 320
 global successfulCoordinates := []
-;State Variables
-global enabledUnits := Map()  
-global placementValues := Map()
+global maxedCoordinates := []
+global nukeCoordinates := []
+global placedCounts := Map()
 ;Hotkeys
 global F1Key := "F1"
 global F2Key := "F2"
@@ -36,6 +36,7 @@ global loss := 0
 global mode := ""
 global StartTime := A_TickCount
 global currentTime := GetCurrentTime()
+global unitCardsVisible := true
 ;Custom Unit Placement
 global waitingForClick := false
 global savedCoords := []  ; Initialize an empty array to hold the coordinates
@@ -47,6 +48,7 @@ global UnitData := []
 global aaMainUI := Gui("+AlwaysOnTop -Caption")
 global lastlog := ""
 global aaMainUIHwnd := aaMainUI.Hwnd
+global ActiveControlGroup := ""
 ;Theme colors
 uiTheme.Push("0xffffff")  ; Header color
 uiTheme.Push("0c000a")  ; Background color
@@ -216,11 +218,17 @@ OpenGuide(*) {
 
 aaMainUI.SetFont("s9 Bold c" uiTheme[1])
 
-global settingsBtn := aaMainUI.Add("Button", "x1160 y5 w90 h20", "Settings")
-settingsBtn.OnEvent("Click", ShowSettingsGUI)
-
-global guideBtn := aaMainUI.Add("Button", "x1060 y5 w90 h20", "Guide")
+global guideBtn := aaMainUI.Add("Button", "x900 y5 w90 h20", "Guide")
 guideBtn.OnEvent("Click", OpenGuide)
+
+global miscSettingsButton := aaMainUI.Add("Button", "x1000 y5 w90 h20", "Unit Config")
+miscSettingsButton.OnEvent("Click", (*) => ToggleControlGroup("Unit"))
+
+global miscSettingsButton := aaMainUI.Add("Button", "x1100 y5 w90 h20", "Timer Config")
+miscSettingsButton.OnEvent("Click", (*) => ToggleControlGroup("Timer"))
+
+global settingsBtn := aaMainUI.Add("Button", "x1200 y5 w90 h20", "Settings")
+settingsBtn.OnEvent("Click", ShowSettingsGUI)
 
 placementSaveBtn := aaMainUI.Add("Button", "x807 y471 w80 h20", "Save")
 placementSaveBtn.OnEvent("Click", SaveSettings)
@@ -278,6 +286,22 @@ DiscordButton := aaMainUI.Add("Picture", "x112 y645 w60 h34 +BackgroundTrans cff
 GithubButton.OnEvent("Click", (*) => OpenGithub())
 DiscordButton.OnEvent("Click", (*) => OpenDiscord())
 
+global MiscSettings := aaMainUI.Add("GroupBox", "x808 y85 w550 h296 +Center Hidden c" uiTheme[1], "Timer Settings")
+global UnitSettings := aaMainUI.Add("GroupBox", "x808 y85 w550 h296 +Center Hidden c" uiTheme[1], "Unit Settings")
+
+LobbySleepText := aaMainUI.Add("Text", "x818 y123.5 w130 h20 +Center Hidden", "Lobby Sleep Timer")
+global LobbySleepTimer := aaMainUI.Add("DropDownList", "x950 y120 w100 h180 Hidden Choose1", ["No Delay", "5 Seconds", "10 Seconds", "15 Seconds", "20 Seconds", "25 Seconds", "30 Seconds", "35 Seconds", "40 Seconds", "45 Seconds", "50 Seconds", "55 Seconds", "60 Seconds"])
+
+WebhookSleepText := aaMainUI.Add("Text", "x818 y163.5 w130 h20 +Center Hidden", "Webhook Timer")
+global WebhookSleepTimer := aaMainUI.Add("DropDownList", "x950 y160 w100 h180 Hidden Choose1", ["No Delay", "1 minute", "3 minutes", "5 minutes", "10 minutes"])
+
+global NukeUnitSlotEnabled := aaMainUI.Add("Checkbox", "x818 y123.5 Hidden Choose1 cffffff Checked", "Nuke Unit | Slot")
+global NukeUnitSlot := aaMainUI.Add("DropDownList", "x950 y120 w100 h180 Hidden Choose1", ["1", "2", "3", "4", "5", "6"])
+
+NukeUnitText := aaMainUI.Add("Text", "x818 y163.5 w130 h20 +Center Hidden", "Nuke Timer")
+global NukeUnitTimer := aaMainUI.Add("ComboBox", "x950 y160 w100 h180 Hidden Choose1 c000000", [""])
+
+
 ;--------------SETTINGS;--------------SETTINGS;--------------SETTINGS;--------------SETTINGS;--------------SETTINGS;--------------SETTINGS;--------------SETTINGS
 ;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT;--------------MODE SELECT
 global modeSelectionGroup := aaMainUI.Add("GroupBox", "x808 y38 w500 h45 Background" uiTheme[2], "Mode Select")
@@ -314,18 +338,21 @@ AddUnitCard(aaMainUI, index, x, y) {
     unit.BorderTop := aaMainUI.Add("Text", Format("x{} y{} w550 h2 +Background{}", x, y, uiTheme[3]))
     unit.BorderBottom := aaMainUI.Add("Text", Format("x{} y{} w552 h2 +Background{}", x, y+45, uiTheme[3]))
     unit.BorderLeft := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x, y, uiTheme[3]))
-    unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+250, y, uiTheme[3]))
-    unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+550, y, uiTheme[3]))
+    unit.BorderRight1 := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+250, y, uiTheme[3]))
+    unit.BorderRight2 := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+550, y, uiTheme[3]))
+    unit.BorderRight3 := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+390, y, uiTheme[3]))
     aaMainUI.SetFont("s11 Bold c" uiTheme[1])
-    unit.Title := aaMainUI.Add("Text", Format("x{} y{} w60 h25 +BackgroundTrans", x+30, y+18), "Unit " index)
+    unit.UnitTitle := aaMainUI.Add("Text", Format("x{} y{} w60 h25 +BackgroundTrans", x+30, y+18), "Unit " index)
 
     aaMainUI.SetFont("s9 c" uiTheme[1])
     unit.PlacementText := aaMainUI.Add("Text", Format("x{} y{} w70 h20 +BackgroundTrans", x+100, y+2), "Placement")
     unit.PriorityText := aaMainUI.Add("Text", Format("x{} y{} w60 h20 BackgroundTrans", x+183, y+2), "Priority")
 
-    unit.BorderRight := aaMainUI.Add("Text", Format("x{} y{} w2 h45 +Background{}", x+390, y, uiTheme[3]))
     unit.PlaceUpgradeText := aaMainUI.Add("Text", Format("x{} y{} w250 h20 BackgroundTrans", x+183+83, y+2), "Place && Upgrade")
-    unit.Title := aaMainUI.Add("Text", Format("x{} y{} w250 h25 +BackgroundTrans", x+295, y+20), "Enabled")
+    unit.UpgradeTitle := aaMainUI.Add("Text", Format("x{} y{} w250 h25 +BackgroundTrans", x+295, y+20), "Enabled")
+
+    unit.UpgradeCapText := aaMainUI.Add("Text", Format("x{} y{} w250 h20 BackgroundTrans", x+425, y+2), "Upgrade Limit")
+    unit.UpgradeLimitTitle := aaMainUI.Add("Text", Format("x{} y{} w250 h25 +BackgroundTrans", x+430, y+20), "Enabled")   
     
     UnitData.Push(unit)
     return unit
@@ -352,6 +379,13 @@ upgradeEnabled4 := aaMainUI.Add("CheckBox", "x1070 y255 w15 h15", "")
 upgradeEnabled5 := aaMainUI.Add("CheckBox", "x1070 y305 w15 h15", "")
 upgradeEnabled6 := aaMainUI.Add("CheckBox", "x1070 y355 w15 h15", "")
 
+upgradeLimitEnabled1 := aaMainUI.Add("CheckBox", "x1210 y105 w15 h15", "")
+upgradeLimitEnabled2 := aaMainUI.Add("CheckBox", "x1210 y155 w15 h15", "")
+upgradeLimitEnabled3 := aaMainUI.Add("CheckBox", "x1210 y205 w15 h15", "")
+upgradeLimitEnabled4 := aaMainUI.Add("CheckBox", "x1210 y255 w15 h15", "")
+upgradeLimitEnabled5 := aaMainUI.Add("CheckBox", "x1210 y305 w15 h15", "")
+upgradeLimitEnabled6 := aaMainUI.Add("CheckBox", "x1210 y355 w15 h15", "")
+
 aaMainUI.SetFont("s8 c" uiTheme[6])
 
 ; Placement dropdowns
@@ -368,6 +402,14 @@ Priority3 := aaMainUI.Add("DropDownList", "x990 y205 w60 h180 Choose1 +Center", 
 Priority4 := aaMainUI.Add("DropDownList", "x990 y255 w60 h180 Choose1 +Center", ["1","2","3","4","5","6"])
 Priority5 := aaMainUI.Add("DropDownList", "x990 y305 w60 h180 Choose1 +Center", ["1","2","3","4","5","6"])
 Priority6 := aaMainUI.Add("DropDownList", "x990 y355 w60 h180 Choose1 +Center", ["1","2","3","4","5","6"])
+
+; Upgrade Limit
+UpgradeLimit1 := aaMainUI.Add("DropDownList", "x1300 y105 w40 h180 Choose1 +Center", ["0","1","2","3","4","5","6","7","8","9","10", "11"])
+UpgradeLimit2 := aaMainUI.Add("DropDownList", "x1300 y155 w40 h180 Choose1 +Center", ["0","1","2","3","4","5","6","7","8","9","10", "11"])
+UpgradeLimit3 := aaMainUI.Add("DropDownList", "x1300 y205 w40 h180 Choose1 +Center", ["0","1","2","3","4","5","6","7","8","9","10", "11"])
+UpgradeLimit4 := aaMainUI.Add("DropDownList", "x1300 y255 w40 h180 Choose1 +Center", ["0","1","2","3","4","5","6","7","8","9","10", "11"])
+UpgradeLimit5 := aaMainUI.Add("DropDownList", "x1300 y305 w40 h180 Choose1 +Center", ["0","1","2","3","4","5","6","7","8","9","10", "11"])
+UpgradeLimit6 := aaMainUI.Add("DropDownList", "x1300 y355 w40 h180 Choose1 +Center", ["0","1","2","3","4","5","6","7","8","9","10", "11"])
 
 readInSettings()
 aaMainUI.Show("w1366 h700")
@@ -646,4 +688,78 @@ SendPlacements(*) {
     presetIndex := PlacementProfiles.Value
 
     AddToLog("Preset: " PlacementProfiles.Text " has " savedCoords[presetIndex].Length " saved placements")
+}
+
+SetUnitCardVisibility(visible) {
+    for _, unit in UnitData {
+        for _, control in unit.OwnProps() {
+            if IsObject(control)
+                control.Visible := visible
+        }
+    }
+
+    controlNames := [
+        "Placement", "Priority", "enabled", "upgradeEnabled",
+        "upgradeLimitEnabled", "UpgradeLimit"
+    ]
+
+    for name in controlNames {
+        loop 6 {
+            control := %name%%A_Index%
+            if IsObject(control)
+                control.Visible := visible
+        }
+    }
+}
+
+HideUnitCards() {
+    SetUnitCardVisibility(false)
+}
+
+ShowUnitCards() {
+    SetUnitCardVisibility(true)
+}
+
+ShowOnlyControlGroup(groupToShow) {
+    global ControlGroups := Map()
+
+    ControlGroups["Default"] := [
+        Placement1, Placement2, Placement3, Placement4, Placement5, Placement6,
+        Priority1, Priority2, Priority3, Priority4, Priority5, Priority6,
+        enabled1, enabled2, enabled3, enabled4, enabled5, enabled6,
+        upgradeEnabled1, upgradeEnabled2, upgradeEnabled3, upgradeEnabled4, upgradeEnabled5, upgradeEnabled6,
+        upgradeLimitEnabled1, upgradeLimitEnabled2, upgradeLimitEnabled3, upgradeLimitEnabled4, upgradeLimitEnabled5, upgradeLimitEnabled6,
+        UpgradeLimit1, UpgradeLimit2, UpgradeLimit3, UpgradeLimit4, UpgradeLimit5, UpgradeLimit6
+    ]
+    
+    ControlGroups["Unit"] := [
+        UnitSettings, NukeUnitText, NukeUnitTimer, NukeUnitSlotEnabled, NukeUnitSlot
+    ]
+    
+    ControlGroups["Timer"] := [
+        MiscSettings, LobbySleepText, LobbySleepTimer, WebhookSleepText, WebhookSleepTimer
+    ]
+
+    for name, controls in ControlGroups {
+        isVisible := (name = groupToShow)
+        for control in controls {
+            if IsObject(control)
+                control.Visible := isVisible
+        }
+    }
+}
+
+ToggleControlGroup(groupName) {
+    global ActiveControlGroup
+    if (ActiveControlGroup = groupName) {
+        ShowOnlyControlGroup("Default") ; hide all
+        ActiveControlGroup := ""
+        AddToLog("Displaying: Default UI")
+        ShowUnitCards()
+    } else {
+        ShowOnlyControlGroup(groupName)
+        ActiveControlGroup := groupName
+        AddToLog("Displaying: " groupName " Settings UI")
+        HideUnitCards()
+    }
 }

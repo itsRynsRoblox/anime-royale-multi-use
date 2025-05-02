@@ -4,8 +4,8 @@
 global WebhookURLFile := "Settings\WebhookURL.txt"
 global DiscordUserIDFile := "Settings\DiscordUSERID.txt"
 global SendActivityLogsFile := "Settings\SendActivityLogs.txt"
-global WebhookURL := ""  
-global webhook := ""
+global WebhookURL := FileRead(WebhookURLFile, "UTF-8")
+global webhook := WebhookURL != "" ? WebHookBuilder(WebhookURL) : ""
 global currentStreak := 0
 global lastResult := "none"
 global Wins := 0
@@ -14,6 +14,7 @@ global mode := ""
 global StartTime := A_TickCount 
 global stageStartTime := A_TickCount
 global macroStartTime := A_TickCount
+global webhookSendTime := A_TickCount
 
 if (!FileExist("Settings")) {
     DirCreate("Settings")
@@ -83,15 +84,10 @@ SendWebhookWithTime(isWin, stageLength) {
         return  ; Just return if no webhook file
     }
 
-    ; Read webhook URL from file
-    WebhookURL := FileRead(WebhookURLFile, "UTF-8")
     if !(WebhookURL ~= 'i)https?:\/\/discord\.com\/api\/webhooks\/(\d{18,19})\/[\w-]{68}') {
-        AddToLog("Invalid webhook URL - skipping webhook")
+        AddToLog("No webhook configured - skipping webhook")
         return
     }
-    
-    ; Initialize webhook
-    webhook := WebHookBuilder(WebhookURL)
     
     ; Calculate macro runtime (total time)
     macroLength := FormatStageTime(A_TickCount - macroStartTime)
@@ -229,28 +225,6 @@ TextWebhook() {
     ; Clean up resources
 }
 
-InitiateWinWebhook() {
-    global WebhookURL := FileRead(WebhookURLFile, "UTF-8")
-    global DiscordUserID := FileRead(DiscordUserIDFile, "UTF-8")
-
-    if (webhookURL ~= 'i)https?:\/\/discord\.com\/api\/webhooks\/(\d{18,19})\/[\w-]{68}') {
-        global webhook := WebHookBuilder(WebhookURL)
-        stageLength := FormatStageTime(A_TickCount - stageStartTime)
-        SendWebhookWithTime(true, stageLength)
-    }
-}
-
-InitiateLoseWebhook() {
-    global WebhookURL := FileRead(WebhookURLFile, "UTF-8")
-    global DiscordUserID := FileRead(DiscordUserIDFile, "UTF-8")
-
-    if (webhookURL ~= 'i)https?:\/\/discord\.com\/api\/webhooks\/(\d{18,19})\/[\w-]{68}') {
-        global webhook := WebHookBuilder(WebhookURL)
-        stageLength := FormatStageTime(A_TickCount - stageStartTime)
-        SendWebhookWithTime(false, stageLength)
-    }
-}
-
 WebhookLog() {
     global WebhookURL := FileRead(WebhookURLFile, "UTF-8")
     global DiscordUserID := FileRead(DiscordUserIDFile, "UTF-8")
@@ -277,8 +251,6 @@ WebhookScreenshot(title, description, color := 0x0dffff, status := "") {
         "lose", lose_messages
     )
 
-    global webhook := WebHookBuilder(WebhookURL)
-    global WebhookURL := FileRead(WebhookURLFile, "UTF-8")
     global DiscordUserID := FileRead(DiscordUserIDFile, "UTF-8")
     global wins, loss, currentStreak, stageStartTime
 
@@ -310,7 +282,7 @@ WebhookScreenshot(title, description, color := 0x0dffff, status := "") {
         messages := footerMessages["win"]
         footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("count", wins))
     } else {
-        messages := footerMessages["loss"]
+        messages := footerMessages["lose"]
         footerText := ReplaceVars(messages[Random(1, messages.Length)], Map("count", loss))
     }
 
